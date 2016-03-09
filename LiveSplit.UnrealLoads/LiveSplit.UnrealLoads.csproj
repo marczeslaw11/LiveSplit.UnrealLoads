@@ -60,6 +60,7 @@
   <ItemGroup>
     <Compile Include="ExportTableParser.cs" />
     <Compile Include="GameMemory.cs" />
+    <Compile Include="GameSupport\HarryPotter1.cs" />
     <Compile Include="GameSupport\IGameSupport.cs" />
     <Compile Include="GameSupport\HarryPotter2.cs" />
     <Compile Include="GameSupport\Shrek2.cs" />

@@ -31,8 +31,6 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			674234 //no-cd
 		};
 
-		public HarryPotter2() { }
-
 		public IdentificationResult IdentifyProcess(Process process)
 		{
 			if (_moduleMemorySizes.Contains(process.MainModuleWow64Safe().ModuleMemorySize)

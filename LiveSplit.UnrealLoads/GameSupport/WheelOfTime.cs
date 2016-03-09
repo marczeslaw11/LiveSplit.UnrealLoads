@@ -57,8 +57,6 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			_hook.KeyOrButtonPressed += hook_KeyOrButtonPressed;
 		}
 
-		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
-
 		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
 			if (_shouldStart)
@@ -131,6 +129,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			}
 		}
 
+		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
 		public bool? IsLoading(MemoryWatcherList watchers) => null;
 	}
 }

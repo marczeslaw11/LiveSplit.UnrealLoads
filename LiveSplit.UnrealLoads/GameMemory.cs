@@ -16,6 +16,7 @@ namespace LiveSplit.UnrealLoads
 		public const int SLEEP_TIME = 15;
 
 		public static readonly IGameSupport[] SupportedGames = new IGameSupport[] {
+			new HarryPotter1(),
 			new HarryPotter2(),
 			new Shrek2(),
 			new WheelOfTime()

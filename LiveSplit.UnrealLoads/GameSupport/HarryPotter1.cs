@@ -4,36 +4,28 @@ using System.Diagnostics;
 
 namespace LiveSplit.UnrealLoads.GameSupport
 {
-	class Shrek2 : IGameSupport
+	class HarryPotter1 : IGameSupport
 	{
 		public HashSet<string> GameNames { get; } = new HashSet<string>
 		{
-			"Shrek 2"
+			"Harry Potter 1",
+			"Harry Potter I",
+			"Harry Potter and the Philosopher's Stone",
+			"HP1",
+			"HP 1",
+			"HP I"
 		};
 
 		public HashSet<string> ProcessNames { get; } = new HashSet<string>
 		{
-			"game"
+			"hp"
 		};
 
 		public HashSet<string> Maps { get; }
 
-		public IdentificationResult IdentifyProcess(Process process)
-		{
-			return process.MainModuleWow64Safe().ModuleMemorySize == 438272
-				? IdentificationResult.Success
-				: IdentificationResult.Failure;
-		}
-
-		public TimerAction[] OnMapLoad(StringWatcher map)
-		{
-			if (map.Current.ToLower() == "book_story_1.unr")
-				return new TimerAction[] { TimerAction.Reset, TimerAction.Start };
-
-			return null;
-		}
-
+		public TimerAction[] OnMapLoad(StringWatcher map) => null;
 		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers) => null;
+		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
 		public bool? IsLoading(MemoryWatcherList watchers) => null;
 		public TimerAction[] OnAttach(Process game) => null;
 		public TimerAction[] OnDetach(Process game) => null;
