@@ -9,11 +9,9 @@ namespace LiveSplit.UnrealLoads.GameSupport
 		public HashSet<string> GameNames { get; } = new HashSet<string>
 		{
 			"Harry Potter 1",
-			"Harry Potter I",
 			"Harry Potter and the Philosopher's Stone",
 			"HP1",
-			"HP 1",
-			"HP I"
+			"HP 1"
 		};
 
 		public HashSet<string> ProcessNames { get; } = new HashSet<string>
