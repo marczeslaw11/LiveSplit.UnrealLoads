@@ -7,6 +7,12 @@ Installation
 2. The Game Name field must be set to one of the supported games names:
  * The Wheel of Time
  * Wheel of Time
+ * Harry Potter 1
+ * Harry Potter I
+ * HP1
+ * HP1PC
+ * Harry Potter and the Philosopher's Stone
+ * Harry Potter and the Philosopher's Stone (PC)
  * Harry Potter 2
  * Harry Potter II
  * HP2
