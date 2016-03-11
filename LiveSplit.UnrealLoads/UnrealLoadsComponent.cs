@@ -58,7 +58,10 @@ namespace LiveSplit.UnrealLoads
 			if (Settings.AutoSplitOnMapChange && !_splitHistory.Contains(map))
 			{
 				var enabled = false;
-				Settings.Maps.TryGetValue(map.ToLower(), out enabled);
+				if (Settings.Maps.Count == 0)
+					enabled = true;
+				else
+					Settings.Maps.TryGetValue(map.ToLower(), out enabled);
 
 				if (enabled)
 				{
