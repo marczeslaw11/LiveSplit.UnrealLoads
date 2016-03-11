@@ -53,22 +53,6 @@ namespace LiveSplit.UnrealLoads
 #endif
 		}
 
-		string GetDefaultMapSet()
-		{
-			var game = _state.Run.GameName.ToLower();
-
-			var wotNames = new string[]
-			{
-				"wheel of time",
-				"wot"
-			};
-
-			if (wotNames.Any(n => game.Contains(n)))
-				return "Wheel of Time";
-
-			return string.Empty;
-		}
-
 		static IGameSupport SearchGameSupport(string name)
 		{
 			var game = GameMemory.SupportedGames.FirstOrDefault(g => g.GetType().Name == name);
