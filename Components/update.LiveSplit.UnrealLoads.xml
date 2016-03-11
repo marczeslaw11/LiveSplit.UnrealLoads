@@ -1,2 +1,11 @@
 <updates>
+  <update version="1.1">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Added basic support for Harry Potter 1 (map loads and saves only).</change>
+      <change>Activating autosplitting when the map whitelist is empty will now autosplit for any map.</change>
+    </changelog>
+  </update>
 </updates>
