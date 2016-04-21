@@ -49,14 +49,15 @@ namespace LiveSplit.UnrealLoads
 		StringWatcher _map;
 
 		ProcessModuleWow64Safe _engine;
-		IntPtr _loadMapJMP;
-		IntPtr _saveGameJMP;
+		IntPtr _oLoadMapPtr;
+		IntPtr _oSaveGamePtr;
 		IntPtr _realLoadMapPtr;
 		IntPtr _realSaveGamePtr;
 		IntPtr _fakeLoadMapPtr;
 		IntPtr _fakeSaveGamePtr;
 		IntPtr _statusPtr;
 		IntPtr _mapPtr;
+		bool _usesTrampolines;
 		readonly int MAP_SIZE = Encoding.Unicode.GetMaxByteCount(260); // MAX_PATH == 260
 		const string LOADMAP_SYMBOL = "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
 		const string SAVEGAME_SYMBOL = "?SaveGame@UGameEngine@@UAEXH@Z";
@@ -265,140 +266,165 @@ namespace LiveSplit.UnrealLoads
 			return game;
 		}
 
+		static IntPtr ReadJMP(Process game, IntPtr ptr)
+		{
+			if (game.ReadBytes(ptr, 1)[0] == 0xE9)
+				return ptr + 1 + sizeof(int) + game.ReadValue<int>(ptr + 1);
+			else
+				return IntPtr.Zero;
+        }
+
 		bool Patch(Process game)
 		{
 			var exportsParser = new ExportTableParser(game, "engine.dll");
 			exportsParser.Parse();
 
-			_loadMapJMP = exportsParser.Exports[LOADMAP_SYMBOL] + 1;
-			_saveGameJMP = exportsParser.Exports[SAVEGAME_SYMBOL] + 1;
+			_oLoadMapPtr = exportsParser.Exports[LOADMAP_SYMBOL];
+			_oSaveGamePtr = exportsParser.Exports[SAVEGAME_SYMBOL];
 
-			_realLoadMapPtr = _loadMapJMP + sizeof(int) + game.ReadValue<int>(_loadMapJMP);
-			_realSaveGamePtr = _saveGameJMP + sizeof(int) + game.ReadValue<int>(_saveGameJMP);
+			_realLoadMapPtr = ReadJMP(game, _oLoadMapPtr);
+			_realSaveGamePtr = ReadJMP(game, _oSaveGamePtr);
 
-			_statusPtr = game.AllocateMemory(sizeof(int));
-			_mapPtr = game.AllocateMemory(MAP_SIZE);
+			if ((_usesTrampolines = _realLoadMapPtr == IntPtr.Zero && _realSaveGamePtr == IntPtr.Zero))
+			{
+				_realLoadMapPtr = _oLoadMapPtr;
+				_realSaveGamePtr = _oSaveGamePtr;
+            }
 
-			var statusAddrBytes = BitConverter.GetBytes((int)_statusPtr);
-			var mapAddrBytes = BitConverter.GetBytes((int)_mapPtr);
-
-			var fakeSaveGameBytes = new List<byte>() {
-				0x55, 							// PUSH EBP
-				0x8B, 0xEC,						// MOV EBP,ESP
-				0x83, 0xEC, 0x08,				// SUB ESP,8
-				0x89, 0x55, 0xF8,				// MOV DWORD PTR SS:[EBP-8],EDX
-				0x89, 0x4D, 0xFC,				// MOV DWORD PTR SS:[EBP-4],ECX
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],2
-			};
-			fakeSaveGameBytes.AddRange(statusAddrBytes);
-			fakeSaveGameBytes.AddRange(new byte[] {
-				2, 0, 0, 0,						// set status to 2
-				0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
-				0x50,							// PUSH EAX
-				0x8B, 0x4D, 0xFC				// MOV ECX,DWORD PTR SS:[EBP-4]
-			});
-			var callOffset = fakeSaveGameBytes.Count;
-			fakeSaveGameBytes.AddRange(new byte[] {
-				255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[SaveGame] (placeholder)
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
-			});
-			fakeSaveGameBytes.AddRange(statusAddrBytes);
-			fakeSaveGameBytes.AddRange(new byte[] {
-				0, 0, 0, 0,
-				0x8B, 0xE5,						// MOV ESP,EBP
-				0x5D,							// POP EBP
-				0xC2, 0x04, 0x00				// RETN 4
-			});
-
-			_fakeSaveGamePtr = game.AllocateMemory(fakeSaveGameBytes.Count);
-			game.WriteBytes(_fakeSaveGamePtr, fakeSaveGameBytes.ToArray());
-			game.WriteCallInstruction(_fakeSaveGamePtr + callOffset, _realSaveGamePtr);
-
-			var fakeLoadMapBytes = new List<byte>() {
-				0x55,							// PUSH EBP
-				0x8B, 0xEC,						// MOV EBP,ESP
-				0x83, 0xEC, 0x14,				// SUB ESP,14
-				0x89, 0x55, 0xEC,				// MOV DWORD PTR SS:[EBP-14],EDX
-				0x89, 0x4D, 0xF4,				// MOV DWORD PTR SS:[EBP-C],ECX
-				0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
-				0x8B, 0x48, 0x1C,				// MOV ECX,DWORD PTR DS:[EAX+1C]
-				0x89, 0x4D, 0xF8,				// MOV DWORD PTR SS:[EBP-8],ECX
-				0xC7, 0x45, 0xFC, 0, 0, 0, 0,	// MOV DWORD PTR SS:[EBP-4],0
-				0xEB, 0x09,						// JMP SHORT main.00E01291
-				0x8B, 0x55, 0xFC,				// /MOV EDX,DWORD PTR SS:[EBP-4]
-				0x83, 0xC2, 0x01,				// |ADD EDX,1
-				0x89, 0x55, 0xFC,				// |MOV DWORD PTR SS:[EBP-4],EDX
-				0x81, 0x7D, 0xFC, 4, 1, 0, 0,	//>|CMP DWORD PTR SS:[EBP-4],104
-				0x7D, 0x27,						// |JGE SHORT main.00E012C1
-				0x8B, 0x45, 0xFC,				// |MOV EAX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x4D, 0xFC,				// |MOV ECX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x55, 0xF8,				// |MOV EDX,DWORD PTR SS:[EBP-8]
-				0x66, 0x8B, 0x0C, 0x4A,			// |MOV CX,WORD PTR DS:[EDX+ECX*2]
-				0x66, 0x89, 0x0C, 0x45			// |MOV WORD PTR DS:[EAX*2+?g_map@@3PA_WA],CX
-			};
-			fakeLoadMapBytes.AddRange(mapAddrBytes);
-			fakeLoadMapBytes.AddRange(new byte[] {
-				0x8B, 0x55, 0xFC,				// |MOV EDX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x45, 0xF8,				// |MOV EAX,DWORD PTR SS:[EBP-8]
-				0x0F, 0xB7, 0x0C, 0x50,			// |MOVZX ECX,WORD PTR DS:[EAX+EDX*2]
-				0x85, 0xC9,						// |TEST ECX,ECX
-				0x75, 0x02,						// |JNZ SHORT main.00E012BF
-				0xEB, 0x02,						// |JMP SHORT main.00E012C1
-				0xEB, 0xC7,						// \JMP SHORT main.00E01288
-				0xBA, 2, 0, 0, 0,				// MOV EDX,2
-				0x69, 0xC2, 3, 1, 0, 0,			// IMUL EAX,EDX,103
-				0x33, 0xC9,						// XOR ECX, ECX
-				0x66, 0x89, 0x88				// MOV WORD PTR DS:[EAX+?g_map@@3PA_WA],CX
-			});
-			fakeLoadMapBytes.AddRange(mapAddrBytes);
-			fakeLoadMapBytes.AddRange(new byte[] {
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],1
-			});
-			fakeLoadMapBytes.AddRange(statusAddrBytes);
-			fakeLoadMapBytes.AddRange(new byte[] {
-				1, 0, 0, 0,						// set status to 1
-				0x8B, 0x55, 0x14,				// MOV EDX,DWORD PTR SS:[EBP+14]
-				0x52,							// PUSH EDX
-				0x8B, 0x45, 0x10,				// MOV EAX,DWORD PTR SS:[EBP+10]
-				0x50,							// PUSH EAX
-				0x8B, 0x4D, 0x0C,				// MOV CDX,DWORD PTR SS:[EBP+C]
-				0x51,							// PUSH ECX
-				0x8B, 0x55, 0x08,				// MOV EDX,DWORD PTR SS:[EBP+8]
-				0x52,							// PUSH EDX
-				0x8B, 0x4D, 0xF4				// MOV ECX,DWORD PTR SS:[EBP-C]
-			});
-			callOffset = fakeLoadMapBytes.Count;
-			fakeLoadMapBytes.AddRange(new byte[] {
-				255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[LoadMap] (placeholder)
-				0x89, 0x45, 0xF0,				// MOV DWORD PTR SS:[EBP-10],EAX
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
-			});
-			fakeLoadMapBytes.AddRange(statusAddrBytes);
-			fakeLoadMapBytes.AddRange(new byte[] {
-				0, 0, 0, 0,						// set status to 0
-				0x8B, 0x45, 0xF0,				// MOV EAX,DWORD PTR SS:[EBP-10]
-				0x8B, 0xE5,						// MOV ESP,EBP
-				0x5D,							// POP EBP
-				0xC2, 0x10, 0x00				// RETN 10
-			});
-
-			_fakeLoadMapPtr = game.AllocateMemory(fakeLoadMapBytes.Count);
-			game.WriteBytes(_fakeLoadMapPtr, fakeLoadMapBytes.ToArray());
-			game.WriteCallInstruction(_fakeLoadMapPtr + callOffset, _realLoadMapPtr);
+			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampolines ? "trampolines" : "thunks")}...");
 
 			game.Suspend();
 			try
 			{
-				// patch JMPs
-				game.WriteBytes(_loadMapJMP,
-					BitConverter.GetBytes((int)_fakeLoadMapPtr - (int)(_loadMapJMP + sizeof(int))));
-				game.WriteBytes(_saveGameJMP,
-					BitConverter.GetBytes((int)_fakeSaveGamePtr - (int)(_saveGameJMP + sizeof(int))));
+				_statusPtr = game.AllocateMemory(sizeof(int));
+				_mapPtr = game.AllocateMemory(MAP_SIZE);
 
-				Debug.WriteLine("Status: " + _statusPtr.ToString("X") + " Map: " + _mapPtr.ToString("X"));
-				Debug.WriteLine("FakeSaveGame: " + _fakeSaveGamePtr.ToString("X") + " FakeLoadMap: " + _fakeLoadMapPtr.ToString("X"));
-				Debug.WriteLine("SaveGame: " + _realSaveGamePtr.ToString("X") + " LoadMap: " + _realLoadMapPtr.ToString("X"));
-				Debug.WriteLine("Hooks installed");
+				var statusAddrBytes = BitConverter.GetBytes((int)_statusPtr);
+				var mapAddrBytes = BitConverter.GetBytes((int)_mapPtr);
+
+				var fakeSaveGameBytes = new List<byte>() {
+					0x55, 							// PUSH EBP
+					0x8B, 0xEC,						// MOV EBP,ESP
+					0x83, 0xEC, 0x08,				// SUB ESP,8
+					0x89, 0x55, 0xF8,				// MOV DWORD PTR SS:[EBP-8],EDX
+					0x89, 0x4D, 0xFC,				// MOV DWORD PTR SS:[EBP-4],ECX
+					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],2
+				};
+				fakeSaveGameBytes.AddRange(statusAddrBytes);
+				fakeSaveGameBytes.AddRange(new byte[] {
+					2, 0, 0, 0,						// set status to 2
+					0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
+					0x50,							// PUSH EAX
+					0x8B, 0x4D, 0xFC				// MOV ECX,DWORD PTR SS:[EBP-4]
+				});
+				var callSaveGameOffset = fakeSaveGameBytes.Count;
+				fakeSaveGameBytes.AddRange(new byte[] {
+					255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[SaveGame] (placeholder)
+					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
+				});
+				fakeSaveGameBytes.AddRange(statusAddrBytes);
+				fakeSaveGameBytes.AddRange(new byte[] {
+					0, 0, 0, 0,
+					0x8B, 0xE5,						// MOV ESP,EBP
+					0x5D,							// POP EBP
+					0xC2, 0x04, 0x00				// RETN 4
+				});
+
+				_fakeSaveGamePtr = game.AllocateMemory(fakeSaveGameBytes.Count);
+				game.WriteBytes(_fakeSaveGamePtr, fakeSaveGameBytes.ToArray());
+
+				var fakeLoadMapBytes = new List<byte>() {
+					0x55,							// PUSH EBP
+					0x8B, 0xEC,						// MOV EBP,ESP
+					0x83, 0xEC, 0x14,				// SUB ESP,14
+					0x89, 0x55, 0xEC,				// MOV DWORD PTR SS:[EBP-14],EDX
+					0x89, 0x4D, 0xF4,				// MOV DWORD PTR SS:[EBP-C],ECX
+					0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
+					0x8B, 0x48, 0x1C,				// MOV ECX,DWORD PTR DS:[EAX+1C]
+					0x89, 0x4D, 0xF8,				// MOV DWORD PTR SS:[EBP-8],ECX
+					0xC7, 0x45, 0xFC, 0, 0, 0, 0,	// MOV DWORD PTR SS:[EBP-4],0
+					0xEB, 0x09,						// JMP SHORT main.00E01291
+					0x8B, 0x55, 0xFC,				// /MOV EDX,DWORD PTR SS:[EBP-4]
+					0x83, 0xC2, 0x01,				// |ADD EDX,1
+					0x89, 0x55, 0xFC,				// |MOV DWORD PTR SS:[EBP-4],EDX
+					0x81, 0x7D, 0xFC, 4, 1, 0, 0,	//>|CMP DWORD PTR SS:[EBP-4],104
+					0x7D, 0x27,						// |JGE SHORT main.00E012C1
+					0x8B, 0x45, 0xFC,				// |MOV EAX,DWORD PTR SS:[EBP-4]
+					0x8B, 0x4D, 0xFC,				// |MOV ECX,DWORD PTR SS:[EBP-4]
+					0x8B, 0x55, 0xF8,				// |MOV EDX,DWORD PTR SS:[EBP-8]
+					0x66, 0x8B, 0x0C, 0x4A,			// |MOV CX,WORD PTR DS:[EDX+ECX*2]
+					0x66, 0x89, 0x0C, 0x45			// |MOV WORD PTR DS:[EAX*2+?g_map@@3PA_WA],CX
+				};
+				fakeLoadMapBytes.AddRange(mapAddrBytes);
+				fakeLoadMapBytes.AddRange(new byte[] {
+					0x8B, 0x55, 0xFC,				// |MOV EDX,DWORD PTR SS:[EBP-4]
+					0x8B, 0x45, 0xF8,				// |MOV EAX,DWORD PTR SS:[EBP-8]
+					0x0F, 0xB7, 0x0C, 0x50,			// |MOVZX ECX,WORD PTR DS:[EAX+EDX*2]
+					0x85, 0xC9,						// |TEST ECX,ECX
+					0x75, 0x02,						// |JNZ SHORT main.00E012BF
+					0xEB, 0x02,						// |JMP SHORT main.00E012C1
+					0xEB, 0xC7,						// \JMP SHORT main.00E01288
+					0xBA, 2, 0, 0, 0,				// MOV EDX,2
+					0x69, 0xC2, 3, 1, 0, 0,			// IMUL EAX,EDX,103
+					0x33, 0xC9,						// XOR ECX, ECX
+					0x66, 0x89, 0x88				// MOV WORD PTR DS:[EAX+?g_map@@3PA_WA],CX
+				});
+				fakeLoadMapBytes.AddRange(mapAddrBytes);
+				fakeLoadMapBytes.AddRange(new byte[] {
+					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],1
+				});
+				fakeLoadMapBytes.AddRange(statusAddrBytes);
+				fakeLoadMapBytes.AddRange(new byte[] {
+					1, 0, 0, 0,						// set status to 1
+					0x8B, 0x55, 0x14,				// MOV EDX,DWORD PTR SS:[EBP+14]
+					0x52,							// PUSH EDX
+					0x8B, 0x45, 0x10,				// MOV EAX,DWORD PTR SS:[EBP+10]
+					0x50,							// PUSH EAX
+					0x8B, 0x4D, 0x0C,				// MOV CDX,DWORD PTR SS:[EBP+C]
+					0x51,							// PUSH ECX
+					0x8B, 0x55, 0x08,				// MOV EDX,DWORD PTR SS:[EBP+8]
+					0x52,							// PUSH EDX
+					0x8B, 0x4D, 0xF4				// MOV ECX,DWORD PTR SS:[EBP-C]
+				});
+				var callLoadMapOffset = fakeLoadMapBytes.Count;
+				fakeLoadMapBytes.AddRange(new byte[] {
+					255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[LoadMap] (placeholder)
+					0x89, 0x45, 0xF0,				// MOV DWORD PTR SS:[EBP-10],EAX
+					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
+				});
+				fakeLoadMapBytes.AddRange(statusAddrBytes);
+				fakeLoadMapBytes.AddRange(new byte[] {
+					0, 0, 0, 0,						// set status to 0
+					0x8B, 0x45, 0xF0,				// MOV EAX,DWORD PTR SS:[EBP-10]
+					0x8B, 0xE5,						// MOV ESP,EBP
+					0x5D,							// POP EBP
+					0xC2, 0x10, 0x00				// RETN 10
+				});
+
+				_fakeLoadMapPtr = game.AllocateMemory(fakeLoadMapBytes.Count);
+				game.WriteBytes(_fakeLoadMapPtr, fakeLoadMapBytes.ToArray());
+
+				if (_usesTrampolines)
+				{
+					// install trampoline hooks
+					_realLoadMapPtr = game.WriteDetour(_oLoadMapPtr, 5, _fakeLoadMapPtr);
+					_realSaveGamePtr = game.WriteDetour(_oSaveGamePtr, 5, _fakeSaveGamePtr);
+				}
+				else
+				{
+					// in case of thunks just replace them
+					game.WriteJumpInstruction(_oLoadMapPtr, _fakeLoadMapPtr);
+					game.WriteJumpInstruction(_oSaveGamePtr, _fakeSaveGamePtr);
+				}
+
+				// write the original functions calls in our detour functions
+				game.WriteCallInstruction(_fakeSaveGamePtr + callSaveGameOffset, _realSaveGamePtr);
+				game.WriteCallInstruction(_fakeLoadMapPtr + callLoadMapOffset, _realLoadMapPtr);
+
+				Debug.WriteLine($"[NoLoads] Status: {_statusPtr.ToString("X")} Map: {_mapPtr.ToString("X")} ");
+				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_fakeSaveGamePtr.ToString("X")} FakeLoadMap: {_fakeLoadMapPtr.ToString("X")}");
+				Debug.WriteLine($"[NoLoads] SaveGame: {_realSaveGamePtr.ToString("X")} LoadMap: {_realLoadMapPtr.ToString("X")} {(_usesTrampolines ? "(trampolines)" : "")}");
+				Debug.WriteLine("[NoLoads] Hooks installed");
 			}
 			catch
 			{
@@ -413,6 +439,12 @@ namespace LiveSplit.UnrealLoads
 			return true;
 		}
 
+		static void CopyMemory(Process process, IntPtr src, IntPtr dest, int nbr)
+		{
+			var bytes = process.ReadBytes(src, nbr);
+			process.WriteBytes(dest, bytes);
+		}
+
 		bool Unpatch(Process game)
 		{
 			if (game == null || game.HasExited)
@@ -421,15 +453,20 @@ namespace LiveSplit.UnrealLoads
 			game.Suspend();
 			try
 			{
-				// restore JMPs
-				game.WriteBytes(_loadMapJMP,
-					BitConverter.GetBytes((int)_realLoadMapPtr - (int)(_loadMapJMP + sizeof(int))));
-				game.WriteBytes(_saveGameJMP,
-					BitConverter.GetBytes((int)_realSaveGamePtr - (int)(_saveGameJMP + sizeof(int))));
+				if (_usesTrampolines)
+				{
+					CopyMemory(game, _realLoadMapPtr, _oLoadMapPtr, 5);
+					CopyMemory(game, _realSaveGamePtr, _oSaveGamePtr, 5);
+				}
+				else
+				{
+					game.WriteJumpInstruction(_oLoadMapPtr, _realLoadMapPtr);
+					game.WriteJumpInstruction(_oSaveGamePtr, _realSaveGamePtr);
+				}
 			}
 			catch
 			{
-				Debug.WriteLine("[NoLoads] Restoring the thunks failed.");
+				Debug.WriteLine("[NoLoads] Unpatching failed.");
 				return false;
 			}
 			finally
@@ -450,6 +487,11 @@ namespace LiveSplit.UnrealLoads
 			game.FreeMemory(_mapPtr);
 			game.FreeMemory(_fakeLoadMapPtr);
 			game.FreeMemory(_fakeSaveGamePtr);
+			if (_usesTrampolines)
+			{
+				game.FreeMemory(_realLoadMapPtr);
+				game.FreeMemory(_realSaveGamePtr);
+			}
 		}
 	}
 }
