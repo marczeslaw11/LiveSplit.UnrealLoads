@@ -285,11 +285,7 @@ namespace LiveSplit.UnrealLoads
 			_realLoadMapPtr = ReadJMP(game, _oLoadMapPtr);
 			_realSaveGamePtr = ReadJMP(game, _oSaveGamePtr);
 
-			if ((_usesTrampolines = _realLoadMapPtr == IntPtr.Zero && _realSaveGamePtr == IntPtr.Zero))
-			{
-				_realLoadMapPtr = _oLoadMapPtr;
-				_realSaveGamePtr = _oSaveGamePtr;
-            }
+			_usesTrampolines = _realLoadMapPtr == IntPtr.Zero && _realSaveGamePtr == IntPtr.Zero;
 
 			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampolines ? "trampolines" : "thunks")}...");
 
