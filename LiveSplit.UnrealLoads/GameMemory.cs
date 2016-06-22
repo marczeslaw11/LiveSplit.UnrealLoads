@@ -115,7 +115,7 @@ namespace LiveSplit.UnrealLoads
 					bool prevIsLoading = false;
 					var map = string.Empty;
 
-					Game.OnAttach(game);
+					DoTimerAction(Game.OnAttach(game));
 
 					while (!game.HasExited)
 					{
