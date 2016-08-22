@@ -80,6 +80,7 @@ namespace LiveSplit.UnrealLoads
 		public override void Dispose()
 		{
 			_gameMemory?.Stop();
+			_state.OnStart -= _state_OnStart;
 		}
 
 		void gameMemory_OnReset(object sender, EventArgs e)
