@@ -18,6 +18,7 @@ namespace LiveSplit.UnrealLoads
 		public static readonly IGameSupport[] SupportedGames = new IGameSupport[] {
 			new HarryPotter1(),
 			new HarryPotter2(),
+			new HarryPotter3(),
 			new Shrek2(),
 			new WheelOfTime()
 		};

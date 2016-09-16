@@ -61,6 +61,7 @@
     <Compile Include="ExportTableParser.cs" />
     <Compile Include="GameMemory.cs" />
     <Compile Include="GameSupport\HarryPotter1.cs" />
+    <Compile Include="GameSupport\HarryPotter3.cs" />
     <Compile Include="GameSupport\IGameSupport.cs" />
     <Compile Include="GameSupport\HarryPotter2.cs" />
     <Compile Include="GameSupport\Shrek2.cs" />
@@ -85,7 +86,6 @@
     <Content Include="..\Components\update.LiveSplit.UnrealLoads.xml">
       <Link>update.LiveSplit.UnrealLoads.xml</Link>
     </Content>
-    <Content Include="hooks.cpp" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSHARP.Targets" />
   <ProjectExtensions>
