@@ -16,6 +16,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 		DoNothing,
 		Start,
 		Reset,
+		Split,
 		PauseGameTime,
 		UnpauseGameTime
 	}
@@ -30,6 +31,6 @@ namespace LiveSplit.UnrealLoads.GameSupport
 		TimerAction[]			OnAttach(Process game);
 		TimerAction[]			OnDetach(Process game);
 		TimerAction[]			OnUpdate(Process game, MemoryWatcherList watchers);
-		TimerAction[]			OnMapLoad(StringWatcher map);
+		TimerAction[]			OnMapLoad(MemoryWatcherList watchers);
 	}
 }

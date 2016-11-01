@@ -25,8 +25,9 @@ namespace LiveSplit.UnrealLoads.GameSupport
 				: IdentificationResult.Failure;
 		}
 
-		public TimerAction[] OnMapLoad(StringWatcher map)
+		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
+			var map = (StringWatcher)watchers["map"];
 			if (map.Current.ToLower() == "book_story_1.unr")
 				return new TimerAction[] { TimerAction.Reset, TimerAction.Start };
 

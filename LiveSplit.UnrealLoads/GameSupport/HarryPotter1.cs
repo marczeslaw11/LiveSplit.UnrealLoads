@@ -21,7 +21,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 
 		public HashSet<string> Maps { get; }
 
-		public TimerAction[] OnMapLoad(StringWatcher map) => null;
+		public TimerAction[] OnMapLoad(MemoryWatcherList watchers) => null;
 		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers) => null;
 		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
 		public bool? IsLoading(MemoryWatcherList watchers) => null;

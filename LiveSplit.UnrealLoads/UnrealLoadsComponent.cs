@@ -40,6 +40,7 @@ namespace LiveSplit.UnrealLoads
 			_gameMemory = new GameMemory();
 			_gameMemory.OnReset += gameMemory_OnReset;
 			_gameMemory.OnStart += gameMemory_OnStart;
+			_gameMemory.OnSplit += _gameMemory_OnSplit;
 			_gameMemory.OnLoadStarted += gameMemory_OnLoadStarted;
 			_gameMemory.OnLoadEnded += gameMemory_OnLoadEnded;
 			_gameMemory.OnMapChange += _gameMemory_OnMapChange;
@@ -53,15 +54,21 @@ namespace LiveSplit.UnrealLoads
 			_splitHistory.Clear();
 		}
 
+		void _gameMemory_OnSplit(object sender, EventArgs e)
+		{
+			_timer.Split();
+		}
+
 		void _gameMemory_OnMapChange(object sender, string map)
 		{
+			map = map.ToLower();
 			if (Settings.AutoSplitOnMapChange && !_splitHistory.Contains(map))
 			{
 				var enabled = false;
 				if (Settings.Maps.Count == 0)
 					enabled = true;
 				else
-					Settings.Maps.TryGetValue(map.ToLower(), out enabled);
+					Settings.Maps.TryGetValue(map, out enabled);
 
 				if (enabled)
 				{

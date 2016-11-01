@@ -57,8 +57,9 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public TimerAction[] OnMapLoad(StringWatcher map)
+		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
+			var map = (StringWatcher)watchers["map"];
 			//reset only if it is the first map loaded
 			if (string.IsNullOrEmpty(map.Old) && map.Current.ToLower() == "privetdr.unr")
 				return new TimerAction[] { TimerAction.Reset };

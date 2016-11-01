@@ -68,10 +68,10 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public TimerAction[] OnMapLoad(StringWatcher map)
+		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
-			_map = map;
-			if (map.Current.ToLower() == "mission_01")
+			_map = (StringWatcher)watchers["map"];
+			if (_map.Current.ToLower() == "mission_01")
 				return new TimerAction[] { TimerAction.Reset };
 
 			return null;

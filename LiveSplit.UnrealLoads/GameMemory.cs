@@ -1,8 +1,10 @@
 ﻿using LiveSplit.ComponentUtil;
 using LiveSplit.UnrealLoads.GameSupport;
+using LiveSplit.UnrealLoads.Hooks;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,6 +13,13 @@ using System.Windows.Forms;
 
 namespace LiveSplit.UnrealLoads
 {
+	enum Status
+	{
+		None,
+		LoadingMap,
+		Saving
+	}
+
 	class GameMemory
 	{
 		public const int SLEEP_TIME = 15;
@@ -20,18 +29,18 @@ namespace LiveSplit.UnrealLoads
 			new HarryPotter2(),
 			new HarryPotter3(),
 			new Shrek2(),
-			new WheelOfTime()
+			new WheelOfTime(),
+			new UnrealGold()
 		};
 
-		enum Status
-		{
-			None,
-			LoadingMap,
-			Saving
-		}
+		public static readonly string[] SupportedGamesNames =
+			SupportedGames.SelectMany(g => g.ProcessNames
+				.Select(pName => pName.ToLower()))
+				.ToArray();
 
 		public event EventHandler OnReset;
 		public event EventHandler OnStart;
+		public event EventHandler OnSplit;
 		public event EventHandler OnLoadStarted;
 		public event EventHandler OnLoadEnded;
 		public event MapChangeEventHandler OnMapChange;
@@ -50,18 +59,12 @@ namespace LiveSplit.UnrealLoads
 		StringWatcher _map;
 
 		ProcessModuleWow64Safe _engine;
-		IntPtr _oLoadMapPtr;
-		IntPtr _oSaveGamePtr;
-		IntPtr _realLoadMapPtr;
-		IntPtr _realSaveGamePtr;
-		IntPtr _fakeLoadMapPtr;
-		IntPtr _fakeSaveGamePtr;
+		Detour _loadMapHook;
+		Detour _saveGameHook;
 		IntPtr _statusPtr;
 		IntPtr _mapPtr;
-		bool _usesTrampolines;
+
 		readonly int MAP_SIZE = Encoding.Unicode.GetMaxByteCount(260); // MAX_PATH == 260
-		const string LOADMAP_SYMBOL = "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
-		const string SAVEGAME_SYMBOL = "?SaveGame@UGameEngine@@UAEXH@Z";
 
 		public GameMemory()
 		{
@@ -115,6 +118,7 @@ namespace LiveSplit.UnrealLoads
 					bool isLoading;
 					bool prevIsLoading = false;
 					var map = string.Empty;
+					var prevMap = string.Empty;
 
 					DoTimerAction(Game.OnAttach(game));
 
@@ -133,14 +137,14 @@ namespace LiveSplit.UnrealLoads
 
 						if (_map.Changed)
 						{
-							map = _map.Current.ToLower();
-							_uiThread.Post(d => OnMapChange?.Invoke(this, _map.Current), null);
-							Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", _map.Old, _map.Current, frameCounter));
+							map = Path.GetFileNameWithoutExtension(_map.Current).ToLower();
+							_uiThread.Post(d => OnMapChange?.Invoke(this, map), null);
+							Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter));
 						}
 
 						if (_status.Changed && _status.Current == (int)Status.LoadingMap)
 						{
-							DoTimerAction(Game.OnMapLoad(_map));
+							DoTimerAction(Game.OnMapLoad(_watchers));
 						}
 
 						if (isLoading != prevIsLoading)
@@ -158,6 +162,7 @@ namespace LiveSplit.UnrealLoads
 						}
 
 						prevIsLoading = isLoading;
+						prevMap = map;
 						frameCounter++;
 
 						Thread.Sleep(SLEEP_TIME);
@@ -193,6 +198,9 @@ namespace LiveSplit.UnrealLoads
 				case TimerAction.Start:
 					evnt = OnStart;
 					break;
+				case TimerAction.Split:
+					evnt = OnSplit;
+					break;
 				case TimerAction.PauseGameTime:
 					evnt = OnLoadStarted;
 					break;
@@ -216,10 +224,13 @@ namespace LiveSplit.UnrealLoads
 		Process GetGameProcess()
 		{
 			Process game = null;
-			foreach (var p in Process.GetProcesses())
+
+			var processes = SupportedGamesNames.SelectMany(n => Process.GetProcessesByName(n))
+				.OrderByDescending(p => p.StartTime);
+
+			foreach (var p in processes)
 			{
-				var names = SupportedGames.SelectMany(g => g.ProcessNames);
-				if (!names.Contains(p.ProcessName.ToLower()) || p.HasExited || _ignorePIDs.Contains(p.Id)
+				if (p.HasExited || _ignorePIDs.Contains(p.Id)
 					|| (_engine = p.ModulesWow64Safe().FirstOrDefault(m => m.ModuleName.ToLower() == "engine.dll")) == null)
 					continue;
 
@@ -258,8 +269,8 @@ namespace LiveSplit.UnrealLoads
 				if (!Patch(game))
 					return null;
 
-				_status = new MemoryWatcher<int>(_statusPtr);
-				_map = new StringWatcher(_mapPtr, ReadStringType.UTF16, MAP_SIZE);
+				_status = new MemoryWatcher<int>(_statusPtr) { Name = "status" };
+				_map = new StringWatcher(_mapPtr, ReadStringType.UTF16, MAP_SIZE) { Name = "map" };
 				_watchers.AddRange(new MemoryWatcher[] { _status, _map });
 			}
 
@@ -267,160 +278,40 @@ namespace LiveSplit.UnrealLoads
 			return game;
 		}
 
-		static IntPtr ReadJMP(Process game, IntPtr ptr)
-		{
-			if (game.ReadBytes(ptr, 1)[0] == 0xE9)
-				return ptr + 1 + sizeof(int) + game.ReadValue<int>(ptr + 1);
-			else
-				return IntPtr.Zero;
-        }
-
 		bool Patch(Process game)
 		{
 			var exportsParser = new ExportTableParser(game, "engine.dll");
 			exportsParser.Parse();
-
-			_oLoadMapPtr = exportsParser.Exports[LOADMAP_SYMBOL];
-			_oSaveGamePtr = exportsParser.Exports[SAVEGAME_SYMBOL];
-
-			_realLoadMapPtr = ReadJMP(game, _oLoadMapPtr);
-			_realSaveGamePtr = ReadJMP(game, _oSaveGamePtr);
-
-			_usesTrampolines = _realLoadMapPtr == IntPtr.Zero && _realSaveGamePtr == IntPtr.Zero;
-
-			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampolines ? "trampolines" : "thunks")}...");
 
 			game.Suspend();
 			try
 			{
 				_statusPtr = game.AllocateMemory(sizeof(int));
 				_mapPtr = game.AllocateMemory(MAP_SIZE);
+				IntPtr loadMapPtr, saveGamePtr;
 
-				var statusAddrBytes = BitConverter.GetBytes((int)_statusPtr);
-				var mapAddrBytes = BitConverter.GetBytes((int)_mapPtr);
+				if (exportsParser.Exports.TryGetValue(SaveGameDetour.SYMBOL, out saveGamePtr))
+					_saveGameHook = new SaveGameDetour(game, saveGamePtr, _statusPtr);
+				else
+					throw new Exception("Couldn't find the SaveGame function.");
 
-				var fakeSaveGameBytes = new List<byte>() {
-					0x55, 							// PUSH EBP
-					0x8B, 0xEC,						// MOV EBP,ESP
-					0x83, 0xEC, 0x08,				// SUB ESP,8
-					0x89, 0x55, 0xF8,				// MOV DWORD PTR SS:[EBP-8],EDX
-					0x89, 0x4D, 0xFC,				// MOV DWORD PTR SS:[EBP-4],ECX
-					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],2
-				};
-				fakeSaveGameBytes.AddRange(statusAddrBytes);
-				fakeSaveGameBytes.AddRange(new byte[] {
-					2, 0, 0, 0,						// set status to 2
-					0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
-					0x50,							// PUSH EAX
-					0x8B, 0x4D, 0xFC				// MOV ECX,DWORD PTR SS:[EBP-4]
-				});
-				var callSaveGameOffset = fakeSaveGameBytes.Count;
-				fakeSaveGameBytes.AddRange(new byte[] {
-					255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[SaveGame] (placeholder)
-					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
-				});
-				fakeSaveGameBytes.AddRange(statusAddrBytes);
-				fakeSaveGameBytes.AddRange(new byte[] {
-					0, 0, 0, 0,
-					0x8B, 0xE5,						// MOV ESP,EBP
-					0x5D,							// POP EBP
-					0xC2, 0x04, 0x00				// RETN 4
-				});
-
-				_fakeSaveGamePtr = game.AllocateMemory(fakeSaveGameBytes.Count);
-				game.WriteBytes(_fakeSaveGamePtr, fakeSaveGameBytes.ToArray());
-
-				var fakeLoadMapBytes = new List<byte>() {
-					0x55,							// PUSH EBP
-					0x8B, 0xEC,						// MOV EBP,ESP
-					0x83, 0xEC, 0x14,				// SUB ESP,14
-					0x89, 0x55, 0xEC,				// MOV DWORD PTR SS:[EBP-14],EDX
-					0x89, 0x4D, 0xF4,				// MOV DWORD PTR SS:[EBP-C],ECX
-					0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
-					0x8B, 0x48, 0x1C,				// MOV ECX,DWORD PTR DS:[EAX+1C]
-					0x89, 0x4D, 0xF8,				// MOV DWORD PTR SS:[EBP-8],ECX
-					0xC7, 0x45, 0xFC, 0, 0, 0, 0,	// MOV DWORD PTR SS:[EBP-4],0
-					0xEB, 0x09,						// JMP SHORT main.00E01291
-					0x8B, 0x55, 0xFC,				// /MOV EDX,DWORD PTR SS:[EBP-4]
-					0x83, 0xC2, 0x01,				// |ADD EDX,1
-					0x89, 0x55, 0xFC,				// |MOV DWORD PTR SS:[EBP-4],EDX
-					0x81, 0x7D, 0xFC, 4, 1, 0, 0,	//>|CMP DWORD PTR SS:[EBP-4],104
-					0x7D, 0x27,						// |JGE SHORT main.00E012C1
-					0x8B, 0x45, 0xFC,				// |MOV EAX,DWORD PTR SS:[EBP-4]
-					0x8B, 0x4D, 0xFC,				// |MOV ECX,DWORD PTR SS:[EBP-4]
-					0x8B, 0x55, 0xF8,				// |MOV EDX,DWORD PTR SS:[EBP-8]
-					0x66, 0x8B, 0x0C, 0x4A,			// |MOV CX,WORD PTR DS:[EDX+ECX*2]
-					0x66, 0x89, 0x0C, 0x45			// |MOV WORD PTR DS:[EAX*2+?g_map@@3PA_WA],CX
-				};
-				fakeLoadMapBytes.AddRange(mapAddrBytes);
-				fakeLoadMapBytes.AddRange(new byte[] {
-					0x8B, 0x55, 0xFC,				// |MOV EDX,DWORD PTR SS:[EBP-4]
-					0x8B, 0x45, 0xF8,				// |MOV EAX,DWORD PTR SS:[EBP-8]
-					0x0F, 0xB7, 0x0C, 0x50,			// |MOVZX ECX,WORD PTR DS:[EAX+EDX*2]
-					0x85, 0xC9,						// |TEST ECX,ECX
-					0x75, 0x02,						// |JNZ SHORT main.00E012BF
-					0xEB, 0x02,						// |JMP SHORT main.00E012C1
-					0xEB, 0xC7,						// \JMP SHORT main.00E01288
-					0xBA, 2, 0, 0, 0,				// MOV EDX,2
-					0x69, 0xC2, 3, 1, 0, 0,			// IMUL EAX,EDX,103
-					0x33, 0xC9,						// XOR ECX, ECX
-					0x66, 0x89, 0x88				// MOV WORD PTR DS:[EAX+?g_map@@3PA_WA],CX
-				});
-				fakeLoadMapBytes.AddRange(mapAddrBytes);
-				fakeLoadMapBytes.AddRange(new byte[] {
-					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],1
-				});
-				fakeLoadMapBytes.AddRange(statusAddrBytes);
-				fakeLoadMapBytes.AddRange(new byte[] {
-					1, 0, 0, 0,						// set status to 1
-					0x8B, 0x55, 0x14,				// MOV EDX,DWORD PTR SS:[EBP+14]
-					0x52,							// PUSH EDX
-					0x8B, 0x45, 0x10,				// MOV EAX,DWORD PTR SS:[EBP+10]
-					0x50,							// PUSH EAX
-					0x8B, 0x4D, 0x0C,				// MOV CDX,DWORD PTR SS:[EBP+C]
-					0x51,							// PUSH ECX
-					0x8B, 0x55, 0x08,				// MOV EDX,DWORD PTR SS:[EBP+8]
-					0x52,							// PUSH EDX
-					0x8B, 0x4D, 0xF4				// MOV ECX,DWORD PTR SS:[EBP-C]
-				});
-				var callLoadMapOffset = fakeLoadMapBytes.Count;
-				fakeLoadMapBytes.AddRange(new byte[] {
-					255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[LoadMap] (placeholder)
-					0x89, 0x45, 0xF0,				// MOV DWORD PTR SS:[EBP-10],EAX
-					0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
-				});
-				fakeLoadMapBytes.AddRange(statusAddrBytes);
-				fakeLoadMapBytes.AddRange(new byte[] {
-					0, 0, 0, 0,						// set status to 0
-					0x8B, 0x45, 0xF0,				// MOV EAX,DWORD PTR SS:[EBP-10]
-					0x8B, 0xE5,						// MOV ESP,EBP
-					0x5D,							// POP EBP
-					0xC2, 0x10, 0x00				// RETN 10
-				});
-
-				_fakeLoadMapPtr = game.AllocateMemory(fakeLoadMapBytes.Count);
-				game.WriteBytes(_fakeLoadMapPtr, fakeLoadMapBytes.ToArray());
-
-				if (_usesTrampolines)
+				if (exportsParser.Exports.TryGetValue(LoadMapDetour.SYMBOL, out loadMapPtr))
+					_loadMapHook = new LoadMapDetour(game, loadMapPtr, _mapPtr, _statusPtr);
+				else if (exportsParser.Exports.TryGetValue(LoadMapDetour_oldUnreal.SYMBOL, out loadMapPtr))
 				{
-					// install trampoline hooks
-					_realLoadMapPtr = game.WriteDetour(_oLoadMapPtr, 5, _fakeLoadMapPtr);
-					_realSaveGamePtr = game.WriteDetour(_oSaveGamePtr, 5, _fakeSaveGamePtr);
+					((SaveGameDetour)_saveGameHook).OldUnreal = true;
+					_loadMapHook = new LoadMapDetour_oldUnreal(game, loadMapPtr, _mapPtr, _statusPtr);
 				}
 				else
-				{
-					// in case of thunks just replace them
-					game.WriteJumpInstruction(_oLoadMapPtr, _fakeLoadMapPtr);
-					game.WriteJumpInstruction(_oSaveGamePtr, _fakeSaveGamePtr);
-				}
+					throw new Exception("Couldn't find the LoadMap function.");
 
-				// write the original functions calls in our detour functions
-				game.WriteCallInstruction(_fakeSaveGamePtr + callSaveGameOffset, _realSaveGamePtr);
-				game.WriteCallInstruction(_fakeLoadMapPtr + callLoadMapOffset, _realLoadMapPtr);
+
+				_saveGameHook.Install(game);
+				_loadMapHook.Install(game);
 
 				Debug.WriteLine($"[NoLoads] Status: {_statusPtr.ToString("X")} Map: {_mapPtr.ToString("X")} ");
-				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_fakeSaveGamePtr.ToString("X")} FakeLoadMap: {_fakeLoadMapPtr.ToString("X")}");
-				Debug.WriteLine($"[NoLoads] SaveGame: {_realSaveGamePtr.ToString("X")} LoadMap: {_realLoadMapPtr.ToString("X")} {(_usesTrampolines ? "(trampolines)" : "")}");
+				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_saveGameHook.InjectedFuncPtr.ToString("X")} FakeLoadMap: {_loadMapHook.InjectedFuncPtr.ToString("X")}");
+				Debug.WriteLine($"[NoLoads] SaveGame: {_saveGameHook.DetouredFuncPtr.ToString("X")} LoadMap: {_loadMapHook.DetouredFuncPtr.ToString("X")}");
 				Debug.WriteLine("[NoLoads] Hooks installed");
 			}
 			catch
@@ -436,12 +327,6 @@ namespace LiveSplit.UnrealLoads
 			return true;
 		}
 
-		static void CopyMemory(Process process, IntPtr src, IntPtr dest, int nbr)
-		{
-			var bytes = process.ReadBytes(src, nbr);
-			process.WriteBytes(dest, bytes);
-		}
-
 		bool Unpatch(Process game)
 		{
 			if (game == null || game.HasExited)
@@ -450,16 +335,8 @@ namespace LiveSplit.UnrealLoads
 			game.Suspend();
 			try
 			{
-				if (_usesTrampolines)
-				{
-					CopyMemory(game, _realLoadMapPtr, _oLoadMapPtr, 5);
-					CopyMemory(game, _realSaveGamePtr, _oSaveGamePtr, 5);
-				}
-				else
-				{
-					game.WriteJumpInstruction(_oLoadMapPtr, _realLoadMapPtr);
-					game.WriteJumpInstruction(_oSaveGamePtr, _realSaveGamePtr);
-				}
+				_saveGameHook.Uninstall(game);
+				_loadMapHook.Uninstall(game);
 			}
 			catch
 			{
@@ -482,13 +359,8 @@ namespace LiveSplit.UnrealLoads
 
 			game.FreeMemory(_statusPtr);
 			game.FreeMemory(_mapPtr);
-			game.FreeMemory(_fakeLoadMapPtr);
-			game.FreeMemory(_fakeSaveGamePtr);
-			if (_usesTrampolines)
-			{
-				game.FreeMemory(_realLoadMapPtr);
-				game.FreeMemory(_realSaveGamePtr);
-			}
+			_saveGameHook.FreeMemory(game);
+			_loadMapHook.FreeMemory(game);
 		}
 	}
 }
