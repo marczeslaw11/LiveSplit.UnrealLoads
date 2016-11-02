@@ -305,7 +305,6 @@ namespace LiveSplit.UnrealLoads
 				else
 					throw new Exception("Couldn't find the LoadMap function.");
 
-
 				_saveGameHook.Install(game);
 				_loadMapHook.Install(game);
 

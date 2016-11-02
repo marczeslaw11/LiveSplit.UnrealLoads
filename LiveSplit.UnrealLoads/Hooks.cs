@@ -44,7 +44,7 @@ namespace LiveSplit.UnrealLoads.Hooks
 			_overwrittenBytes = 5;
 		}
 
-		public IntPtr Install(Process process)
+		public void Install(Process process)
 		{
 			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampoline ? "trampolines" : "thunks")}...");
 
@@ -64,8 +64,6 @@ namespace LiveSplit.UnrealLoads.Hooks
 			process.WriteBytes(InjectedFuncPtr, Bytes);
 			if (_originalFuncCallOffset >= 0)
 				process.WriteCallInstruction(InjectedFuncPtr + _originalFuncCallOffset, DetouredFuncPtr);
-
-			return InjectedFuncPtr;
 		}
 
 		public void Uninstall(Process process)
@@ -240,7 +238,7 @@ namespace LiveSplit.UnrealLoads.Hooks
 			_bytes.AddRange(statusAddrBytes);
 			_bytes.AddRange(new byte[]
 			{
-				1, 0, 0, 0,
+				1, 0, 0, 0,						// set status to 1
 				0x8B, 0x45, 0x18,				// mov eax,dword ptr ds:[ebp+18]
 				0x50,							// push eax
 				0x8B, 0x4D, 0x14,				// mov ecx,dword ptr ds:[ebp+14]
