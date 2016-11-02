@@ -40,7 +40,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			"isvkran4",
 			"isvkran32",
 			"isvdeck1",
-			"spireillage",
+			"spirevillage",
 			"thesunspire",
 			"skycaves",
 			"skytown",
