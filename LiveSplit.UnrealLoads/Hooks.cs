@@ -44,9 +44,9 @@ namespace LiveSplit.UnrealLoads.Hooks
 			_overwrittenBytes = 5;
 		}
 
-		public void Install(Process process)
+		public virtual void Install(Process process)
 		{
-			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampoline ? "trampolines" : "thunks")}...");
+			Debug.WriteLine($"[NoLoads] Hooking using {(_usesTrampoline ? "trampoline" : "thunk")}...");
 
 			if (InjectedFuncPtr == IntPtr.Zero)
 				InjectedFuncPtr = process.AllocateMemory(Bytes.Length);
@@ -66,7 +66,7 @@ namespace LiveSplit.UnrealLoads.Hooks
 				process.WriteCallInstruction(InjectedFuncPtr + _originalFuncCallOffset, DetouredFuncPtr);
 		}
 
-		public void Uninstall(Process process)
+		public virtual void Uninstall(Process process)
 		{
 			if (_usesTrampoline)
 			{
@@ -80,7 +80,7 @@ namespace LiveSplit.UnrealLoads.Hooks
 			}
 		}
 
-		public void FreeMemory(Process process)
+		public virtual void FreeMemory(Process process)
 		{
 			if (process == null || process.HasExited)
 				return;
@@ -95,82 +95,150 @@ namespace LiveSplit.UnrealLoads.Hooks
 		}
 	}
 
+	public class SetMapFunction
+	{
+		public byte[] Bytes => _bytes.ToArray();
+		public IntPtr InjectedFuncPtr { get; private set; }
+
+		List<byte> _bytes;
+
+		public IntPtr Inject(Process process)
+		{
+			InjectedFuncPtr = process.AllocateMemory(Bytes.Length);
+			process.WriteBytes(InjectedFuncPtr, Bytes);
+			return InjectedFuncPtr;
+		}
+
+		public void FreeMemory(Process process)
+		{
+			if (process == null || process.HasExited)
+				return;
+
+			process.FreeMemory(InjectedFuncPtr);
+			InjectedFuncPtr = IntPtr.Zero;
+		}
+
+		public SetMapFunction(IntPtr mapAddr)
+		{
+			var mapAddrBytes = mapAddr.ToBytes();
+
+			_bytes = new List<byte>()
+			{
+				0x55,							// push ebp
+				0x8B, 0xEC,						// mov ebp,esp
+				0x83, 0xEC, 0x08,				// sub esp,8
+				0xC7, 0x45, 0xFC, 0, 0, 0, 0,   // mov dword ptr ds:[ebp-4],0
+				0xEB, 0x09,						// jmp hooks.A1018
+				0x8B, 0x45, 0xFC,				// mov eax,dword ptr ds:[ebp-4]
+				0x83, 0xC0, 0x01,				// add eax,1
+				0x89, 0x45, 0xFC,				// mov dword ptr ds:[ebp-4],eax
+				0x81, 0x7D, 0xFC, 4, 1, 0, 0,	// cmp dword ptr ds:[ebp-4],104
+				0x7D, 0x27,						// jge hooks.A1048
+				0x8B, 0x4D, 0xFC,				// mov ecx,dword ptr ds:[ebp-4]
+				0x8B, 0x55, 0xFC,				// mov edx,dword ptr ds:[ebp-4]
+				0x8B, 0x45, 0x08,				// mov eax,dword ptr ds:[ebp+8]
+				0x66, 0x8B, 0x14, 0x50,			// mov dx,word ptr ds:[eax+edx*2]
+				0x66, 0x89, 0x14, 0x4D			// mov word ptr ds:[ecx*2+<?g_map@@3PA_WA>
+			};
+			_bytes.AddRange(mapAddrBytes);
+			_bytes.AddRange(new byte[]
+			{
+				0x8B, 0x45, 0xFC,				// mov eax,dword ptr ds:[ebp-4]
+				0x8B, 0x4D, 0x08,				// mov ecx,dword ptr ds:[ebp+8]
+				0x0F, 0xB7, 0x14, 0x41,			// movzx edx,word ptr ds:[ecx+eax*2]
+				0x85, 0xD2,						// test edx,edx
+				0x75, 0x02,						// jne hooks.A1046
+				0xEB, 0x02,						// jmp hooks.A1048
+				0xEB, 0xC7,						// jmp hooks.A100F
+				0xB8, 0x02, 0x00, 0x00, 0x00,	// mov eax,2
+				0x69, 0xC8, 0x03, 0x01, 0, 0,	// imul ecx,eax,103
+				0x89, 0x4D, 0xF8,				// mov dword ptr ds:[ebp-8],ecx
+				0x81, 0x7D, 0xF8, 8, 2, 0, 0,	// cmp dword ptr ds:[ebp-8],208
+				0x73, 0x02,						// jae hooks.A1061
+				0xEB, 0x05,						// jmp hooks.A1066
+				0xE8, 0x44, 0x02, 0x00, 0x00,	// call hooks.A12AA
+				0x33, 0xD2,						// xor edx,edx
+				0x8B, 0x45, 0xF8,				// mov eax,dword ptr ds:[ebp-8]
+				0x66, 0x89, 0x90				// mov word ptr ds:[eax+<?g_map@@3PA_WA>],
+			});
+			_bytes.AddRange(mapAddrBytes);
+			_bytes.AddRange(new byte[]
+			{
+				0x8B, 0xE5,						// mov esp,ebp
+				0x5D,							// pop ebp
+				0xC3							// ret
+			});
+		}
+	}
+
 	public class LoadMapDetour : Detour
 	{
 		public const string SYMBOL = "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
 
-		public LoadMapDetour(Process process, IntPtr functionToDetour, IntPtr mapAddr, IntPtr statusAddr)
+		IntPtr _setMapPtr;
+		int _setMapCallOffset;
+
+		public override void Install(Process process)
+		{
+			base.Install(process);
+			process.WriteCallInstruction(InjectedFuncPtr + _setMapCallOffset, _setMapPtr);
+		}
+
+		public LoadMapDetour(Process process, IntPtr functionToDetour, IntPtr setMapAddr, IntPtr statusAddr)
 			: base(process, functionToDetour)
 		{
-			var mapAddrBytes = mapAddr.ToBytes();
+			_setMapPtr = setMapAddr;
 			var statusAddrBytes = statusAddr.ToBytes();
 
-			_bytes = new List<byte>() {
-				0x55,							// PUSH EBP
-				0x8B, 0xEC,						// MOV EBP,ESP
-				0x83, 0xEC, 0x14,				// SUB ESP,14
-				0x89, 0x55, 0xEC,				// MOV DWORD PTR SS:[EBP-14],EDX
-				0x89, 0x4D, 0xF4,				// MOV DWORD PTR SS:[EBP-C],ECX
-				0x8B, 0x45, 0x08,				// MOV EAX,DWORD PTR SS:[EBP+8]
-				0x8B, 0x48, 0x1C,				// MOV ECX,DWORD PTR DS:[EAX+1C]
-				0x89, 0x4D, 0xF8,				// MOV DWORD PTR SS:[EBP-8],ECX
-				0xC7, 0x45, 0xFC, 0, 0, 0, 0,	// MOV DWORD PTR SS:[EBP-4],0
-				0xEB, 0x09,						// JMP SHORT main.00E01291
-				0x8B, 0x55, 0xFC,				// /MOV EDX,DWORD PTR SS:[EBP-4]
-				0x83, 0xC2, 0x01,				// |ADD EDX,1
-				0x89, 0x55, 0xFC,				// |MOV DWORD PTR SS:[EBP-4],EDX
-				0x81, 0x7D, 0xFC, 4, 1, 0, 0,	//>|CMP DWORD PTR SS:[EBP-4],104
-				0x7D, 0x27,						// |JGE SHORT main.00E012C1
-				0x8B, 0x45, 0xFC,				// |MOV EAX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x4D, 0xFC,				// |MOV ECX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x55, 0xF8,				// |MOV EDX,DWORD PTR SS:[EBP-8]
-				0x66, 0x8B, 0x0C, 0x4A,			// |MOV CX,WORD PTR DS:[EDX+ECX*2]
-				0x66, 0x89, 0x0C, 0x45			// |MOV WORD PTR DS:[EAX*2+?g_map@@3PA_WA],CX
+			_bytes = new List<byte>()
+			{
+				0x55,							// push ebp
+				0x8B, 0xEC,						// mov ebp,esp
+				0x83, 0xEC, 0x10,				// sub esp,10
+				0x89, 0x55, 0xF0,				// mov dword ptr ds:[ebp-10],edx
+				0x89, 0x4D, 0xF8,				// mov dword ptr ds:[ebp-8],ecx
+				0x8B, 0x45, 0x08,				// mov eax,dword ptr ds:[ebp+8]
+				0x8B, 0x48, 0x1C,				// mov ecx,dword ptr ds:[eax+1C]
+				0x89, 0x4D, 0xFC,				// mov dword ptr ds:[ebp-4],ecx
+				0x8B, 0x55, 0xFC,				// mov edx,dword ptr ds:[ebp-4]
+				0x52,							// push edx
 			};
-			_bytes.AddRange(mapAddrBytes);
-			_bytes.AddRange(new byte[] {
-				0x8B, 0x55, 0xFC,				// |MOV EDX,DWORD PTR SS:[EBP-4]
-				0x8B, 0x45, 0xF8,				// |MOV EAX,DWORD PTR SS:[EBP-8]
-				0x0F, 0xB7, 0x0C, 0x50,			// |MOVZX ECX,WORD PTR DS:[EAX+EDX*2]
-				0x85, 0xC9,						// |TEST ECX,ECX
-				0x75, 0x02,						// |JNZ SHORT main.00E012BF
-				0xEB, 0x02,						// |JMP SHORT main.00E012C1
-				0xEB, 0xC7,						// \JMP SHORT main.00E01288
-				0xBA, 2, 0, 0, 0,				// MOV EDX,2
-				0x69, 0xC2, 3, 1, 0, 0,			// IMUL EAX,EDX,103
-				0x33, 0xC9,						// XOR ECX, ECX
-				0x66, 0x89, 0x88				// MOV WORD PTR DS:[EAX+?g_map@@3PA_WA],CX
-			});
-			_bytes.AddRange(mapAddrBytes);
-			_bytes.AddRange(new byte[] {
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],1
+			_setMapCallOffset = _bytes.Count;
+			_bytes.AddRange(new byte[]
+			{
+				255, 255, 255, 255, 255,		// call set_map
+				0x83, 0xC4, 0x04,				// add esp,4
+				0xC7, 0x05						// mov dword ptr ds:[<?g_status@@3HA>],1
 			});
 			_bytes.AddRange(statusAddrBytes);
-			_bytes.AddRange(new byte[] {
+			_bytes.AddRange(new byte[]
+			{
 				1, 0, 0, 0,						// set status to 1
-				0x8B, 0x55, 0x14,				// MOV EDX,DWORD PTR SS:[EBP+14]
-				0x52,							// PUSH EDX
-				0x8B, 0x45, 0x10,				// MOV EAX,DWORD PTR SS:[EBP+10]
-				0x50,							// PUSH EAX
-				0x8B, 0x4D, 0x0C,				// MOV CDX,DWORD PTR SS:[EBP+C]
-				0x51,							// PUSH ECX
-				0x8B, 0x55, 0x08,				// MOV EDX,DWORD PTR SS:[EBP+8]
-				0x52,							// PUSH EDX
-				0x8B, 0x4D, 0xF4				// MOV ECX,DWORD PTR SS:[EBP-C]
+				0x8B, 0x45, 0x14,				// mov eax,dword ptr ds:[ebp+14]
+				0x50,							// push eax
+				0x8B, 0x4D, 0x10,				// mov ecx,dword ptr ds:[ebp+10]
+				0x51,							// push ecx
+				0x8B, 0x55, 0x0C,				// mov edx,dword ptr ds:[ebp+C]
+				0x52,							// push edx
+				0x8B, 0x45, 0x08,				// mov eax,dword ptr ds:[ebp+8]
+				0x50,							// push eax
+				0x8B, 0x4D, 0xF8,				// mov ecx,dword ptr ds:[ebp-8]
 			});
 			_originalFuncCallOffset = _bytes.Count;
-			_bytes.AddRange(new byte[] {
-				255, 255, 255, 255, 255,		// CALL DWORD PTR DS:[LoadMap] (placeholder)
-				0x89, 0x45, 0xF0,				// MOV DWORD PTR SS:[EBP-10],EAX
-				0xC7, 0x05						// MOV DWORD PTR DS:[?g_status@@3HA],0
+			_bytes.AddRange(new byte[]
+			{
+				255, 255, 255, 255, 255,		// call dword ptr ds:[B3780]
+				0x89, 0x45, 0xF4,				// mov dword ptr ds:[ebp-C],eax
+				0xC7, 0x05						// mov dword ptr ds:[<?g_status@@3HA>],0
 			});
 			_bytes.AddRange(statusAddrBytes);
-			_bytes.AddRange(new byte[] {
+			_bytes.AddRange(new byte[]
+			{
 				0, 0, 0, 0,						// set status to 0
-				0x8B, 0x45, 0xF0,				// MOV EAX,DWORD PTR SS:[EBP-10]
-				0x8B, 0xE5,						// MOV ESP,EBP
-				0x5D,							// POP EBP
-				0xC2, 0x10, 0x00				// RETN 10
+				0x8B, 0x45, 0xF4,				// mov eax,dword ptr ds:[ebp-C]
+				0x8B, 0xE5,						// mov esp,ebp
+				0x5D,							// pop ebp
+				0xC2, 0x10, 0x00				// ret 10
 			});
 		}
 	}
@@ -179,61 +247,41 @@ namespace LiveSplit.UnrealLoads.Hooks
 	{
 		public const string SYMBOL = "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@PAVUTravelDataManager@@@Z";
 
-		public LoadMapDetour_oldUnreal(Process process, IntPtr funcToDetour, IntPtr mapAddr, IntPtr statusAddr)
+		int _setMapCallOffset;
+		IntPtr _setMapPtr;
+
+		public override void Install(Process process)
+		{
+			base.Install(process);
+			process.WriteCallInstruction(InjectedFuncPtr + _setMapCallOffset, _setMapPtr);
+		}
+
+		public LoadMapDetour_oldUnreal(Process process, IntPtr funcToDetour, IntPtr setMapAddr, IntPtr statusAddr)
 			: base(process, funcToDetour)
 		{
 			_overwrittenBytes = 8;
-			var mapAddrBytes = mapAddr.ToBytes();
+			_setMapPtr = setMapAddr;
 			var statusAddrBytes = statusAddr.ToBytes();
 
 			_bytes = new List<byte>()
 			{
 				0x55,							// push ebp
 				0x8B, 0xEC,						// mov ebp,esp
-				0x83, 0xEC, 0x18,				// sub esp,18
-				0x89, 0x55, 0xE8,				// mov dword ptr ds:[ebp-18],edx
-				0x89, 0x4D, 0xF0,				// mov dword ptr ds:[ebp-10],ecx
+				0x83, 0xEC, 0x10,				// sub esp,10
+				0x89, 0x55, 0xF0,				// mov dword ptr ds:[ebp-10],edx
+				0x89, 0x4D, 0xF8,				// mov dword ptr ds:[ebp-8],ecx
 				0x8B, 0x45, 0x08,				// mov eax,dword ptr ds:[ebp+8]
 				0x8B, 0x48, 0x1C,				// mov ecx,dword ptr ds:[eax+1C]
-				0x89, 0x4D, 0xF8,				// mov dword ptr ds:[ebp-8],ecx
-				0xC7, 0x45, 0xFC, 0, 0, 0, 0,	// mov dword ptr ds:[ebp-4],0
-				0xEB, 0x09,						// jmp hooks.F910E7
+				0x89, 0x4D, 0xFC,				// mov dword ptr ds:[ebp-4],ecx
 				0x8B, 0x55, 0xFC,				// mov edx,dword ptr ds:[ebp-4]
-				0x83, 0xC2, 0x01,				// add edx,1
-				0x89, 0x55, 0xFC,				// mov dword ptr ds:[ebp-4],edx
-				0x81, 0x7D, 0xFC, 4, 1, 0, 0,	// cmp dword ptr ds:[ebp-4],104
-				0x7D, 0x27,						// jge hooks.F91117
-				0x8B, 0x45, 0xFC,				// mov eax,dword ptr ds:[ebp-4]
-				0x8B, 0x4D, 0xFC,				// mov ecx,dword ptr ds:[ebp-4]
-				0x8B, 0x55, 0xF8,				// mov edx,dword ptr ds:[ebp-8]
-				0x66, 0x8B, 0x0C, 0x4A,			// mov cx,word ptr ds:[edx+ecx*2]
-				0x66, 0x89, 0x0C, 0x45          // mov word ptr ds:[eax*2+<?g_map@@3PA_WA>
+				0x52,							// push edx
 			};
-			_bytes.AddRange(mapAddrBytes);
+			_setMapCallOffset = _bytes.Count;
 			_bytes.AddRange(new byte[]
 			{
-				0x8B, 0x55, 0xFC,				// mov edx,dword ptr ds:[ebp-4]
-				0x8B, 0x45, 0xF8,				// mov eax,dword ptr ds:[ebp-8]
-				0x0F, 0xB7, 0x0C, 0x50,			// movzx ecx,word ptr ds:[eax+edx*2]
-				0x85, 0xC9,						// test ecx,ecx
-				0x75, 0x02,						// jne hooks.F91115
-				0xEB, 0x02,						// jmp hooks.F91117
-				0xEB, 0xC7,						// jmp hooks.F910DE
-				0xBA, 0x02, 0x00, 0x00, 0x00,	// mov edx,2
-				0x69, 0xC2, 3, 1, 0, 0,			// imul eax,edx,103
-				0x89, 0x45, 0xF4,				// mov dword ptr ds:[ebp-C],eax
-				0x81, 0x7D, 0xF4, 8, 2, 0, 0,	// cmp dword ptr ds:[ebp-C],208
-				0x73, 0x02,						// jae hooks.F91130
-				0xEB, 0x05,						// jmp hooks.F91135
-				0xE8, 0xB5, 0x01, 0x00, 0x00,	// call hooks.F912EA
-				0x33, 0xC9,						// xor ecx,ecx
-				0x8B, 0x55, 0xF4,				// mov edx,dword ptr ds:[ebp-C]
-				0x66, 0x89, 0x8A,               // mov word ptr ds:[edx+<?g_map@@3PA_WA>],
-			});
-			_bytes.AddRange(mapAddrBytes);
-			_bytes.AddRange(new byte[]
-			{
-				0xC7, 0x05,                     // mov dword ptr ds:[<?g_status@@3HA>],1
+				255, 255, 255, 255, 255,		// call set_map
+				0x83, 0xC4, 0x04,				// add esp,4
+				0xC7, 0x05						// mov dword ptr ds:[<?g_status@@3HA>],1
 			});
 			_bytes.AddRange(statusAddrBytes);
 			_bytes.AddRange(new byte[]
@@ -249,23 +297,23 @@ namespace LiveSplit.UnrealLoads.Hooks
 				0x50,							// push eax
 				0x8B, 0x4D, 0x08,				// mov ecx,dword ptr ds:[ebp+8]
 				0x51,							// push ecx
-				0x8B, 0x4D, 0xF0,               // mov ecx,dword ptr ds:[ebp-10]
+				0x8B, 0x4D, 0xF8				// mov ecx,dword ptr ds:[ebp-8]
 			});
 			_originalFuncCallOffset = _bytes.Count;
 			_bytes.AddRange(new byte[]
 			{
-				255, 255, 255, 255, 255,		// call dword ptr ds:[FA3784] (placeholder)
-				0x89, 0x45, 0xEC,				// mov dword ptr ds:[ebp-14],eax
-				0xC7, 0x05,						// mov dword ptr ds:[<?g_status@@3HA>]
+				255, 255, 255, 255, 255,		// call dword ptr ds:[B3784]
+				0x89, 0x45, 0xF4,				// mov dword ptr ds:[ebp-C],eax
+				0xC7, 0x05						// mov dword ptr ds:[<?g_status@@3HA>],0
 			});
 			_bytes.AddRange(statusAddrBytes);
 			_bytes.AddRange(new byte[]
 			{
-				0, 0, 0, 0,						// set status to 0
-				0x8B, 0x45, 0xEC,				// mov eax,dword ptr ds:[ebp-14]
+				0, 0, 0, 0,
+				0x8B, 0x45, 0xF4,				// mov eax,dword ptr ds:[ebp-C]
 				0x8B, 0xE5,						// mov esp,ebp
 				0x5D,							// pop ebp
-				0xC2, 0x14, 0x00,				// ret 14
+				0xC2, 0x14, 0x00				// ret 14
 			});
 		}
 	}

@@ -59,6 +59,7 @@ namespace LiveSplit.UnrealLoads
 		StringWatcher _map;
 
 		ProcessModuleWow64Safe _engine;
+		SetMapFunction _setMapFunc;
 		Detour _loadMapHook;
 		Detour _saveGameHook;
 		IntPtr _statusPtr;
@@ -288,6 +289,9 @@ namespace LiveSplit.UnrealLoads
 			{
 				_statusPtr = game.AllocateMemory(sizeof(int));
 				_mapPtr = game.AllocateMemory(MAP_SIZE);
+				_setMapFunc = new SetMapFunction(_mapPtr);
+				_setMapFunc.Inject(game);
+
 				IntPtr loadMapPtr, saveGamePtr;
 
 				if (exportsParser.Exports.TryGetValue(SaveGameDetour.SYMBOL, out saveGamePtr))
@@ -296,11 +300,11 @@ namespace LiveSplit.UnrealLoads
 					throw new Exception("Couldn't find the SaveGame function.");
 
 				if (exportsParser.Exports.TryGetValue(LoadMapDetour.SYMBOL, out loadMapPtr))
-					_loadMapHook = new LoadMapDetour(game, loadMapPtr, _mapPtr, _statusPtr);
+					_loadMapHook = new LoadMapDetour(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
 				else if (exportsParser.Exports.TryGetValue(LoadMapDetour_oldUnreal.SYMBOL, out loadMapPtr))
 				{
 					((SaveGameDetour)_saveGameHook).OldUnreal = true;
-					_loadMapHook = new LoadMapDetour_oldUnreal(game, loadMapPtr, _mapPtr, _statusPtr);
+					_loadMapHook = new LoadMapDetour_oldUnreal(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
 				}
 				else
 					throw new Exception("Couldn't find the LoadMap function.");
@@ -358,6 +362,7 @@ namespace LiveSplit.UnrealLoads
 
 			game.FreeMemory(_statusPtr);
 			game.FreeMemory(_mapPtr);
+			_setMapFunc.FreeMemory(game);
 			_saveGameHook.FreeMemory(game);
 			_loadMapHook.FreeMemory(game);
 		}
