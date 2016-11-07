@@ -294,20 +294,27 @@ namespace LiveSplit.UnrealLoads
 
 				IntPtr loadMapPtr, saveGamePtr;
 
-				if (exportsParser.Exports.TryGetValue(SaveGameDetour.SYMBOL, out saveGamePtr))
-					_saveGameHook = new SaveGameDetour(game, saveGamePtr, _statusPtr);
-				else
-					throw new Exception("Couldn't find the SaveGame function.");
+				var oldUnreal = false;
 
 				if (exportsParser.Exports.TryGetValue(LoadMapDetour.SYMBOL, out loadMapPtr))
 					_loadMapHook = new LoadMapDetour(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
 				else if (exportsParser.Exports.TryGetValue(LoadMapDetour_oldUnreal.SYMBOL, out loadMapPtr))
 				{
-					((SaveGameDetour)_saveGameHook).OldUnreal = true;
 					_loadMapHook = new LoadMapDetour_oldUnreal(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
+					oldUnreal = true;
 				}
 				else
 					throw new Exception("Couldn't find the LoadMap function.");
+
+				if (exportsParser.Exports.TryGetValue(SaveGameDetour.SYMBOL, out saveGamePtr))
+				{
+					_saveGameHook = new SaveGameDetour(game, saveGamePtr, _statusPtr)
+					{
+						OldUnreal = oldUnreal
+					};
+				}
+				else
+					throw new Exception("Couldn't find the SaveGame function.");
 
 				_saveGameHook.Install(game);
 				_loadMapHook.Install(game);
