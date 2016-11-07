@@ -36,6 +36,7 @@ Installation
  * Unreal: Return to Na Pali
  * Unreal Return to Na Pali
  * Return to Na Pali
+ * Unreal Mission Pack: Return to Na Pali
 3. Click Activate.
 4. Autosplitting can be activated in the settings (not available for all games).
 
