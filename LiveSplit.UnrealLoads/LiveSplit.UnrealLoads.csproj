@@ -78,6 +78,7 @@
     <Compile Include="UnrealLoadsSettings.Designer.cs">
       <DependentUpon>UnrealLoadsSettings.cs</DependentUpon>
     </Compile>
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="UnrealLoadsSettings.resx">
