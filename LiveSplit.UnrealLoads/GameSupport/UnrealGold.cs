@@ -23,7 +23,6 @@ namespace LiveSplit.UnrealLoads.GameSupport
 
 		public HashSet<string> Maps { get; } = new HashSet<string>
 		{
-			"vortex2",
 			"nyleve",
 			"dig",
 			"dug",
