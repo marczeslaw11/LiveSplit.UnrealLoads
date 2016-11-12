@@ -85,26 +85,26 @@ namespace LiveSplit.UnrealLoads.GameSupport
 		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
 			var status = (MemoryWatcher<int>)watchers["status"];
-			if (status.Current == (int)Status.None && status.Old == (int)Status.LoadingMap)
+			if (status.Changed)
 			{
 				var mapW = (StringWatcher)watchers["map"];
 				var map = Path.GetFileNameWithoutExtension(mapW.Current).ToLower();
-				if (map == "vortex2" || map == "duskfalls")
-					return new TimerAction[] { TimerAction.Start };
+
+				if (status.Old == (int)Status.LoadingMap)
+				{
+					if (map == "vortex2" || map == "duskfalls")
+						return new TimerAction[] { TimerAction.Start };
+				}
+				else if (status.Current == (int)Status.LoadingMap)
+				{
+					if (map == "vortex2")
+						return new TimerAction[] { TimerAction.Reset };
+				}
 			}
 			return null;
 		}
 
-		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
-		{
-			var mapW = (StringWatcher)watchers["map"];
-			var map = Path.GetFileNameWithoutExtension(mapW.Current).ToLower();
-
-			if (map == "vortex2")
-				return new TimerAction[] { TimerAction.Reset };
-
-			return null;
-		}
+		public TimerAction[] OnMapLoad(MemoryWatcherList watchers) => null;
 
 		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
 		public bool? IsLoading(MemoryWatcherList watchers) => null;
