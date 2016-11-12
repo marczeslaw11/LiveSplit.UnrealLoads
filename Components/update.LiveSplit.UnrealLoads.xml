@@ -1,4 +1,13 @@
 <updates>
+  <update version="1.3.2">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Unreal Gold: CRITICAL BUG FIX: Auto-resets were preceded by an auto-split. Your golds are probably messed up if you had autosplitting enabled (sorry!).
+Return to Na Pali and the other games are not affected.</change>
+    </changelog>
+  </update>
   <update version="1.3.1">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
