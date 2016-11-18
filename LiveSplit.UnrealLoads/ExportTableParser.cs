@@ -10,7 +10,7 @@ using System.Text;
 namespace LiveSplit.UnrealLoads
 {
 	//didn't test 64-bit
-	class ExportTableParser
+	public class ExportTableParser
 	{
 		public ReadOnlyDictionary<string, IntPtr> Exports { get; private set; }
 

@@ -6,22 +6,22 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
-namespace LiveSplit.UnrealLoads.GameSupport
+namespace LiveSplit.UnrealLoads.Games
 {
-	class WheelOfTime : IGameSupport
+	class WheelOfTime : GameSupport
 	{
-		public HashSet<string> GameNames { get; protected set; } = new HashSet<string>
+		public override HashSet<string> GameNames => new HashSet<string>
 		{
 			"Wheel of Time",
 			"wot"
 		};
 
-		public HashSet<string> ProcessNames { get; protected set; } = new HashSet<string>
+		public override HashSet<string> ProcessNames => new HashSet<string>
 		{
 			"wot"
 		};
 
-		public HashSet<string> Maps { get; protected set; } = new HashSet<string>
+		public override HashSet<string> Maps => new HashSet<string>
 		{
 			"mission_02",
 			"mission_03",
@@ -57,7 +57,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			_hook.KeyOrButtonPressed += hook_KeyOrButtonPressed;
 		}
 
-		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
+		public override TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
 			if (_shouldStart)
 			{
@@ -68,7 +68,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
+		public override TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
 			_map = (StringWatcher)watchers["map"];
 			if (_map.Current.ToLower() == "mission_01")
@@ -77,14 +77,14 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public TimerAction[] OnAttach(Process game)
+		public override TimerAction[] OnAttach(Process game)
 		{
 			_game = game;
 			ParseInis(game);
 			return null;
 		}
 
-		public TimerAction[] OnDetach(Process game)
+		public override TimerAction[] OnDetach(Process game)
 		{
 			_hook.UnregisterAllHotkeys();
 			return null;
@@ -128,8 +128,5 @@ namespace LiveSplit.UnrealLoads.GameSupport
 				}
 			}
 		}
-
-		public IdentificationResult IdentifyProcess(Process process) => IdentificationResult.Success;
-		public bool? IsLoading(MemoryWatcherList watchers) => null;
 	}
 }

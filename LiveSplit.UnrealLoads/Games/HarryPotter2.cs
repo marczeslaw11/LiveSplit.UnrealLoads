@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace LiveSplit.UnrealLoads.GameSupport
+namespace LiveSplit.UnrealLoads.Games
 {
-	class HarryPotter2 : IGameSupport
+	class HarryPotter2 : GameSupport
 	{
-		public HashSet<string> GameNames { get; } = new HashSet<string>
+		public override HashSet<string> GameNames => new HashSet<string>
 		{
 			"Harry Potter 2",
 			"Harry Potter II",
@@ -17,12 +17,10 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			"HP II"
 		};
 
-		public HashSet<string> ProcessNames { get; } = new HashSet<string>
+		public override HashSet<string> ProcessNames => new HashSet<string>
 		{
 			"game"
 		};
-
-		public HashSet<string> Maps { get; }
 
 		MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
 		readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
@@ -31,7 +29,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			674234 //no-cd
 		};
 
-		public IdentificationResult IdentifyProcess(Process process)
+		public override IdentificationResult IdentifyProcess(Process process)
 		{
 			if (_moduleMemorySizes.Contains(process.MainModuleWow64Safe().ModuleMemorySize)
 				&& GetCommandLine(process).Contains("-SAVESLOT="))
@@ -40,7 +38,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return IdentificationResult.Failure;
 		}
 
-		public TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
+		public override TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
 			_isSkippingCut.Update(game);
 			if (_isSkippingCut.Changed && _isSkippingCut.Current)
@@ -49,7 +47,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public bool? IsLoading(MemoryWatcherList watchers)
+		public override bool? IsLoading(MemoryWatcherList watchers)
 		{
 			if (_isSkippingCut.Current)
 				return true;
@@ -57,7 +55,7 @@ namespace LiveSplit.UnrealLoads.GameSupport
 			return null;
 		}
 
-		public TimerAction[] OnMapLoad(MemoryWatcherList watchers)
+		public override TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
 			var map = (StringWatcher)watchers["map"];
 			//reset only if it is the first map loaded
@@ -79,8 +77,5 @@ namespace LiveSplit.UnrealLoads.GameSupport
 
 			return commandLine.ToString();
 		}
-
-		public TimerAction[] OnAttach(Process game) => null;
-		public TimerAction[] OnDetach(Process game) => null;
 	}
 }

@@ -60,13 +60,15 @@
   <ItemGroup>
     <Compile Include="ExportTableParser.cs" />
     <Compile Include="GameMemory.cs" />
-    <Compile Include="GameSupport\HarryPotter1.cs" />
-    <Compile Include="GameSupport\HarryPotter3.cs" />
-    <Compile Include="GameSupport\IGameSupport.cs" />
-    <Compile Include="GameSupport\HarryPotter2.cs" />
-    <Compile Include="GameSupport\Shrek2.cs" />
-    <Compile Include="GameSupport\UnrealGold.cs" />
-    <Compile Include="GameSupport\WheelOfTime.cs" />
+    <Compile Include="Games\GameSupport.cs" />
+    <Compile Include="Games\HarryPotter1.cs" />
+    <Compile Include="Games\HarryPotter3.cs" />
+    <Compile Include="Games\HarryPotter2.cs" />
+    <Compile Include="Games\Shrek2.cs" />
+    <Compile Include="Games\SplinterCell.cs" />
+    <Compile Include="Games\SplinterCell3.cs" />
+    <Compile Include="Games\UnrealGold.cs" />
+    <Compile Include="Games\WheelOfTime.cs" />
     <Compile Include="Hooks.cs" />
     <Compile Include="PE.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

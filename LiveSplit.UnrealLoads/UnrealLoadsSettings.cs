@@ -1,6 +1,6 @@
 ﻿using LiveSplit.Model;
 using LiveSplit.UI;
-using LiveSplit.UnrealLoads.GameSupport;
+using LiveSplit.UnrealLoads.Games;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,7 +53,7 @@ namespace LiveSplit.UnrealLoads
 #endif
 		}
 
-		static IGameSupport SearchGameSupport(string name)
+		static GameSupport SearchGameSupport(string name)
 		{
 			var game = GameMemory.SupportedGames.FirstOrDefault(g => g.GetType().Name == name);
 			if (game != null)
@@ -154,7 +154,7 @@ namespace LiveSplit.UnrealLoads
 
 		void cbGame_SelectedIndexChanged(object sender, EventArgs e)
 		{
-            var selected = (IGameSupport)Activator.CreateInstance((Type)cbGame.SelectedItem);
+            var selected = (GameSupport)Activator.CreateInstance((Type)cbGame.SelectedItem);
 
 			var copy = new Dictionary<string, bool>(Maps);
 			Maps.Clear();

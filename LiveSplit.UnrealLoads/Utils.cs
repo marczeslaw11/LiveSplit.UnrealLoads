@@ -11,6 +11,8 @@ namespace LiveSplit.UnrealLoads
 	{
 		public static byte[] ToBytes(this IntPtr ptr) => BitConverter.GetBytes((int)ptr);
 
+		public static byte[] ToBytes(this Status s) => BitConverter.GetBytes((int)s);
+
 		public static string ToHex(this IList<byte> bytes)
 		{
 			var sb = new StringBuilder(bytes.Count * 2);

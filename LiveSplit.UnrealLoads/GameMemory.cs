@@ -1,6 +1,5 @@
 ﻿using LiveSplit.ComponentUtil;
-using LiveSplit.UnrealLoads.GameSupport;
-using LiveSplit.UnrealLoads.Hooks;
+using LiveSplit.UnrealLoads.Games;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,16 +23,19 @@ namespace LiveSplit.UnrealLoads
 	{
 		public const int SLEEP_TIME = 15;
 
-		public static readonly IGameSupport[] SupportedGames = new IGameSupport[] {
+		public static readonly GameSupport[] SupportedGames = new GameSupport[]
+		{
 			new HarryPotter1(),
 			new HarryPotter2(),
 			new HarryPotter3(),
 			new Shrek2(),
 			new WheelOfTime(),
-			new UnrealGold()
+			new UnrealGold(),
+			new SplinterCell3(),
+			new SplinterCell()
 		};
 
-		public static readonly string[] SupportedGamesNames =
+		public static readonly string[] SupportedProcessesNames =
 			SupportedGames.SelectMany(g => g.ProcessNames
 				.Select(pName => pName.ToLower()))
 				.ToArray();
@@ -46,7 +48,7 @@ namespace LiveSplit.UnrealLoads
 		public event MapChangeEventHandler OnMapChange;
 		public delegate void MapChangeEventHandler(object sender, string map);
 
-		public IGameSupport Game { get; private set; }
+		public GameSupport Game { get; private set; }
 
 		Task _thread;
 		CancellationTokenSource _cancelSource;
@@ -58,7 +60,6 @@ namespace LiveSplit.UnrealLoads
 		MemoryWatcher<int> _status;
 		StringWatcher _map;
 
-		ProcessModuleWow64Safe _engine;
 		SetMapFunction _setMapFunc;
 		Detour _loadMapHook;
 		Detour _saveGameHook;
@@ -226,13 +227,12 @@ namespace LiveSplit.UnrealLoads
 		{
 			Process game = null;
 
-			var processes = SupportedGamesNames.SelectMany(n => Process.GetProcessesByName(n))
+			var processes = SupportedProcessesNames.SelectMany(n => Process.GetProcessesByName(n))
 				.OrderByDescending(p => p.StartTime);
 
 			foreach (var p in processes)
 			{
-				if (p.HasExited || _ignorePIDs.Contains(p.Id)
-					|| (_engine = p.ModulesWow64Safe().FirstOrDefault(m => m.ModuleName.ToLower() == "engine.dll")) == null)
+				if (p.HasExited || _ignorePIDs.Contains(p.Id))
 					continue;
 
 				var ignoreProcess = true;
@@ -240,6 +240,14 @@ namespace LiveSplit.UnrealLoads
 				{
 					if (!gameSupport.ProcessNames.Contains(p.ProcessName.ToLower()))
 						continue;
+
+					var modules = p.ModulesWow64Safe();
+					if (!gameSupport.GetHookModules().All(hook_m =>
+								modules.Any(m => hook_m.ToLower() == m.ModuleName.ToLower())))
+					{
+						ignoreProcess = false;
+						continue;
+					}
 
 					switch (gameSupport.IdentifyProcess(p))
 					{
@@ -251,6 +259,9 @@ namespace LiveSplit.UnrealLoads
 							ignoreProcess = false; // don't ignore if at least one game is unsure
 							break;
 					}
+
+					if (game != null)
+						break;
 				}
 
 				if (game != null)
@@ -281,9 +292,6 @@ namespace LiveSplit.UnrealLoads
 
 		bool Patch(Process game)
 		{
-			var exportsParser = new ExportTableParser(game, "engine.dll");
-			exportsParser.Parse();
-
 			game.Suspend();
 			try
 			{
@@ -292,28 +300,13 @@ namespace LiveSplit.UnrealLoads
 				_setMapFunc = new SetMapFunction(_mapPtr);
 				_setMapFunc.Inject(game);
 
-				IntPtr loadMapPtr, saveGamePtr;
+				_loadMapHook = Game.GetLoadMapHook(game, _setMapFunc.InjectedFuncPtr, _statusPtr);
+				_saveGameHook = Game.GetSaveGameHook(game, _statusPtr);
 
-				var oldUnreal = false;
-
-				if (exportsParser.Exports.TryGetValue(LoadMapDetour.SYMBOL, out loadMapPtr))
-					_loadMapHook = new LoadMapDetour(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
-				else if (exportsParser.Exports.TryGetValue(LoadMapDetour_oldUnreal.SYMBOL, out loadMapPtr))
-				{
-					_loadMapHook = new LoadMapDetour_oldUnreal(game, loadMapPtr, _setMapFunc.InjectedFuncPtr, _statusPtr);
-					oldUnreal = true;
-				}
-				else
+				if (_loadMapHook == null)
 					throw new Exception("Couldn't find the LoadMap function.");
 
-				if (exportsParser.Exports.TryGetValue(SaveGameDetour.SYMBOL, out saveGamePtr))
-				{
-					_saveGameHook = new SaveGameDetour(game, saveGamePtr, _statusPtr)
-					{
-						OldUnreal = oldUnreal
-					};
-				}
-				else
+				if (_saveGameHook == null)
 					throw new Exception("Couldn't find the SaveGame function.");
 
 				_saveGameHook.Install(game);
@@ -369,9 +362,9 @@ namespace LiveSplit.UnrealLoads
 
 			game.FreeMemory(_statusPtr);
 			game.FreeMemory(_mapPtr);
-			_setMapFunc.FreeMemory(game);
-			_saveGameHook.FreeMemory(game);
-			_loadMapHook.FreeMemory(game);
+			_setMapFunc?.FreeMemory(game);
+			_saveGameHook?.FreeMemory(game);
+			_loadMapHook?.FreeMemory(game);
 		}
 	}
 }
