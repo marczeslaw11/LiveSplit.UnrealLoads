@@ -37,6 +37,13 @@ Installation
  * Unreal Return to Na Pali
  * Return to Na Pali
  * Unreal Mission Pack: Return to Na Pali
+ * Splinter Cell
+ * Tom Clancy's Splinter Cell
+ * Splinter Cell 3
+ * Splinter Cell: Chaos Theory
+ * Splinter Cell Chaos Theory
+ * Tom Clancy's Splinter Cell: Chaos Theory
+ * Tom Clancy's Splinter Cell Chaos Theory
 3. Click Activate.
 4. Autosplitting can be activated in the settings (not available for all games).
 
