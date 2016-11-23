@@ -79,7 +79,8 @@ namespace LiveSplit.UnrealLoads.Games
 			"toxic",
 			"glacena",
 			"abyss",
-			"nalic2"
+			"nalic2",
+			"inter14"
 		};
 
 		public override Type LoadMapDetourT => typeof(LoadMapDetour_oldUnreal);
