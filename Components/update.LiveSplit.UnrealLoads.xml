@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.4.2">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Added support for another Harry Potter 2 version.</change>
+    </changelog>
+  </update>
   <update version="1.4.1">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
