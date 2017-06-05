@@ -26,6 +26,7 @@ namespace LiveSplit.UnrealLoads.Games
 		readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
 		{
 			704512,
+			749568, // US
 			674234 //no-cd
 		};
 
