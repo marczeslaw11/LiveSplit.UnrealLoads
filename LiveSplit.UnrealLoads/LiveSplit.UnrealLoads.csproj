@@ -15,11 +15,11 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\Program Files\LiveSplit\Components\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <OutputPath>C:\LiveSplit\Components\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <GenerateSerializationAssemblies>On</GenerateSerializationAssemblies>
+    <GenerateSerializationAssemblies>Auto</GenerateSerializationAssemblies>
     <Prefer32Bit>false</Prefer32Bit>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
@@ -37,9 +37,8 @@
     <RootNamespace>LiveSplit.UnrealLoads</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="LiveSplit.Core, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\Program Files\LiveSplit\LiveSplit.Core.dll</HintPath>
+    <Reference Include="LiveSplit.Core">
+      <HintPath>C:\LiveSplit\LiveSplit.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
@@ -52,8 +51,9 @@
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="UpdateManager">
-      <HintPath>..\..\..\..\..\Program Files\LiveSplit\UpdateManager.dll</HintPath>
+    <Reference Include="UpdateManager, Version=0.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\LiveSplit\UpdateManager.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -67,6 +67,7 @@
     <Compile Include="Games\Shrek2.cs" />
     <Compile Include="Games\SplinterCell.cs" />
     <Compile Include="Games\SplinterCell3.cs" />
+    <Compile Include="Games\DeusEx.cs" />
     <Compile Include="Games\UnrealGold.cs" />
     <Compile Include="Games\WheelOfTime.cs" />
     <Compile Include="Hooks.cs" />

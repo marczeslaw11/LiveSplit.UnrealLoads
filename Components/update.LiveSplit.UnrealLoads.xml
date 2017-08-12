@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.4.3">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Added support for Deus Ex.</change>
+    </changelog>
+  </update>
   <update version="1.4.2">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>

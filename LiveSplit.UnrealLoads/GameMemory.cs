@@ -32,7 +32,8 @@ namespace LiveSplit.UnrealLoads
 			new WheelOfTime(),
 			new UnrealGold(),
 			new SplinterCell3(),
-			new SplinterCell()
+			new SplinterCell(),
+			new DeusEx()
 		};
 
 		public static readonly string[] SupportedProcessesNames =
