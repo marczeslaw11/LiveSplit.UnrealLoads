@@ -44,6 +44,8 @@ Installation
  * Splinter Cell Chaos Theory
  * Tom Clancy's Splinter Cell: Chaos Theory
  * Tom Clancy's Splinter Cell Chaos Theory
+ * DeusEx
+ * Deus Ex
 3. Click Activate.
 4. Autosplitting can be activated in the settings (not available for all games).
 
