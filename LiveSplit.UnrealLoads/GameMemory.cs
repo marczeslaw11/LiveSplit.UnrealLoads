@@ -23,17 +23,17 @@ namespace LiveSplit.UnrealLoads
 	{
 		public const int SLEEP_TIME = 15;
 
-        public static readonly GameSupport[] SupportedGames = new GameSupport[]
-        {
-            new HarryPotter1(),
-            new HarryPotter2(),
-            new HarryPotter3(),
-            new Shrek2(),
-            new WheelOfTime(),
-            new UnrealGold(),
-            new SplinterCell3(),
-            new SplinterCell(),
-            new DeusEx()
+		public static readonly GameSupport[] SupportedGames = new GameSupport[]
+		{
+			new HarryPotter1(),
+			new HarryPotter2(),
+			new HarryPotter3(),
+			new Shrek2(),
+			new WheelOfTime(),
+			new UnrealGold(),
+			new SplinterCell3(),
+			new SplinterCell(),
+			new DeusEx()
 		};
 
 		public static readonly string[] SupportedProcessesNames =
