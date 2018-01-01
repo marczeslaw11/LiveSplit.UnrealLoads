@@ -35,6 +35,7 @@ namespace LiveSplit.UnrealLoads
 			new SplinterCell(),
 			new MobileForces(),
 			new XCOM_Enforcer(),
+			new DS9TheFallen()
 		};
 
 		public static readonly string[] SupportedProcessesNames =
@@ -284,7 +285,7 @@ namespace LiveSplit.UnrealLoads
 					return null;
 
 				_status = new MemoryWatcher<int>(_statusPtr) { Name = "status" };
-				_map = new StringWatcher(_mapPtr, ReadStringType.UTF16, MAP_SIZE) { Name = "map" };
+				_map = new StringWatcher(_mapPtr, ReadStringType.AutoDetect, MAP_SIZE) { Name = "map" };
 				_watchers.AddRange(new MemoryWatcher[] { _status, _map });
 			}
 
