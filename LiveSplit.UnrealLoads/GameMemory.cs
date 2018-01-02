@@ -303,21 +303,26 @@ namespace LiveSplit.UnrealLoads
 				_setMapFunc = new SetMapFunction(_mapPtr);
 				_setMapFunc.Inject(game);
 
-				_loadMapHook = Game.GetLoadMapHook(game, _setMapFunc.InjectedFuncPtr, _statusPtr);
-				_saveGameHook = Game.GetSaveGameHook(game, _statusPtr);
+				if (Game.LoadMapDetourT != null)
+				{
+					_loadMapHook = Game.GetLoadMapHook(game, _setMapFunc.InjectedFuncPtr, _statusPtr);
+					if (_loadMapHook == null)
+						throw new Exception("Couldn't find the LoadMap function.");
+				}
 
-				if (_loadMapHook == null)
-					throw new Exception("Couldn't find the LoadMap function.");
+				if (Game.SaveGameDetourT != null)
+				{
+					_saveGameHook = Game.GetSaveGameHook(game, _statusPtr);
+					if (_saveGameHook == null)
+						throw new Exception("Couldn't find the SaveGame function.");
+				}
 
-				if (_saveGameHook == null)
-					throw new Exception("Couldn't find the SaveGame function.");
-
-				_saveGameHook.Install(game);
-				_loadMapHook.Install(game);
+				_saveGameHook?.Install(game);
+				_loadMapHook?.Install(game);
 
 				Debug.WriteLine($"[NoLoads] Status: {_statusPtr.ToString("X")} Map: {_mapPtr.ToString("X")} ");
-				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_saveGameHook.InjectedFuncPtr.ToString("X")} FakeLoadMap: {_loadMapHook.InjectedFuncPtr.ToString("X")}");
-				Debug.WriteLine($"[NoLoads] SaveGame: {_saveGameHook.DetouredFuncPtr.ToString("X")} LoadMap: {_loadMapHook.DetouredFuncPtr.ToString("X")}");
+				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_saveGameHook?.InjectedFuncPtr.ToString("X")} FakeLoadMap: {_loadMapHook?.InjectedFuncPtr.ToString("X")}");
+				Debug.WriteLine($"[NoLoads] SaveGame: {_saveGameHook?.DetouredFuncPtr.ToString("X")} LoadMap: {_loadMapHook?.DetouredFuncPtr.ToString("X")}");
 				Debug.WriteLine("[NoLoads] Hooks installed");
 			}
 			catch

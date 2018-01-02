@@ -62,12 +62,20 @@ namespace LiveSplit.UnrealLoads.Games
 		public string[] GetHookModules()
 		{
 			var list = new List<string>();
-			var loadmap = Detour.GetModule(LoadMapDetourT);
-			var savegame = Detour.GetModule(SaveGameDetourT);
-			if (!string.IsNullOrEmpty(loadmap))
-				list.Add(loadmap);
-			if (!string.IsNullOrEmpty(savegame))
-				list.Add(savegame);
+
+			if (LoadMapDetourT != null)
+			{
+				var loadmap = Detour.GetModule(LoadMapDetourT);
+				if (!string.IsNullOrEmpty(loadmap))
+					list.Add(loadmap);
+			}
+
+			if (SaveGameDetourT != null)
+			{
+				var savegame = Detour.GetModule(SaveGameDetourT);
+				if (!string.IsNullOrEmpty(savegame))
+					list.Add(savegame);
+			}
 			return list.ToArray();
 		}
 
