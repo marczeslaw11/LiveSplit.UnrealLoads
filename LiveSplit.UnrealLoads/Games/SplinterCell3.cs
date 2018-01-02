@@ -41,25 +41,21 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public override bool? IsLoading(MemoryWatcherList watchers) => false; //disable load removal
 
-		public override Type LoadMapDetourT => typeof(LoadMapDetour_SplinterCell3);
+		public override LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour_SplinterCell3();
 
-		public override Type SaveGameDetourT => typeof(SaveGameDetour_SplinterCell3);
+		public override SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour_SplinterCell3();
 	}
 
 	class LoadMapDetour_SplinterCell3 : LoadMapDetour
 	{
-		public new static string Symbol => "?SEC_LoadMap@UGameEngine@@QAEXABVFURL@@AAVFString@@@Z";
-		public new static string Module => null;
+		public override string Symbol => "?SEC_LoadMap@UGameEngine@@QAEXABVFURL@@AAVFString@@@Z";
+		public override string Module => null;
 
-		public LoadMapDetour_SplinterCell3(IntPtr setMapAddr, IntPtr statusAddr)
-			: base(setMapAddr, statusAddr)
-		{
-			_overwrittenBytes = 6;
-		}
+		protected override int OverwrittenBytes => 6;
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var loadingMap = Status.LoadingMap.ToBytes().ToHex();
 
@@ -89,8 +85,7 @@ namespace LiveSplit.UnrealLoads.Games
 				"C2 08 00"                         // ret 8
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_setMapCallOffset = offsets[0];
 			_originalFuncCallOffset = offsets[1];
 
@@ -100,16 +95,12 @@ namespace LiveSplit.UnrealLoads.Games
 
 	class SaveGameDetour_SplinterCell3 : SaveGameDetour
 	{
-		public new static string Symbol => "?SEC_SaveGame@UGameEngine@@QAEXPAVALevelInfo@@PBG@Z";
-		public new static string Module => null;
-
-		public SaveGameDetour_SplinterCell3(IntPtr statusAddr)
-			: base(statusAddr)
-		{ }
+		public override string Symbol => "?SEC_SaveGame@UGameEngine@@QAEXPAVALevelInfo@@PBG@Z";
+		public override string Module => null;
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var saving = Status.Saving.ToBytes().ToHex();
 
@@ -132,8 +123,7 @@ namespace LiveSplit.UnrealLoads.Games
 				"C2 08 00"                      // ret 8
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_originalFuncCallOffset = offsets[0];
 			return bytes.ToArray();
 		}

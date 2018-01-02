@@ -15,16 +15,18 @@ namespace LiveSplit.UnrealLoads.Games
 			"ds9"
 		};
 
-		public override Type SaveGameDetourT => typeof(SaveGameDetour_DS9TheFallen);
+		public override LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour_DS9TheFallen();
+
+		public override SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour_DS9TheFallen();
+	}
+
+	class LoadMapDetour_DS9TheFallen : LoadMapDetour
+	{
+		public override StringType Encoding => StringType.ASCII;
 	}
 
 	class SaveGameDetour_DS9TheFallen : SaveGameDetour
 	{
-		public new static string Symbol => "?SaveGame@UGameEngine@@UAEXPBD@Z";
-
-		public SaveGameDetour_DS9TheFallen(IntPtr statusAddr)
-			: base(statusAddr)
-		{
-		}
+		public override string Symbol => "?SaveGame@UGameEngine@@UAEXPBD@Z";
 	}
 }

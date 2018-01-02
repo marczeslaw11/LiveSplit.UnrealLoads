@@ -30,24 +30,20 @@ namespace LiveSplit.UnrealLoads.Games
 			"5_1_1_presidentialpalace"
 		};
 
-		public override Type LoadMapDetourT => typeof(LoadMapDetour_SplinterCell);
+		public override LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour_SplinterCell();
 
-		public override Type SaveGameDetourT => typeof(SaveGameDetour_SplinterCell);
+		public override SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour_SplinterCell();
 	}
 
 	class LoadMapDetour_SplinterCell : LoadMapDetour
 	{
-		public new static string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@AAVFString@@@Z";
+		public override string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@AAVFString@@@Z";
 
-		public LoadMapDetour_SplinterCell(IntPtr setMapAddr, IntPtr statusAddr)
-			: base(setMapAddr, statusAddr)
-		{
-			_overwrittenBytes = 6;
-		}
+		protected override int OverwrittenBytes => 6;
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var loadingMap = Status.LoadingMap.ToBytes().ToHex();
 
@@ -79,8 +75,7 @@ namespace LiveSplit.UnrealLoads.Games
 				"C2 08 00"                      // ret 8
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_setMapCallOffset = offsets[0];
 			_originalFuncCallOffset = offsets[1];
 
@@ -90,17 +85,13 @@ namespace LiveSplit.UnrealLoads.Games
 
 	class SaveGameDetour_SplinterCell : SaveGameDetour
 	{
-		public new static string Symbol => "?SaveGame@UGameEngine@@UAEHPBG@Z";
+		public override string Symbol => "?SaveGame@UGameEngine@@UAEHPBG@Z";
 
-		public SaveGameDetour_SplinterCell(IntPtr statusAddr)
-			: base(statusAddr)
-		{
-			_overwrittenBytes = 8;
-		}
+		protected override int OverwrittenBytes => 8;
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var saving = Status.Saving.ToBytes().ToHex();
 
@@ -123,8 +114,7 @@ namespace LiveSplit.UnrealLoads.Games
 				"C2 04 00"                      // ret 4
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_originalFuncCallOffset = offsets[0];
 			return bytes.ToArray();
 		}

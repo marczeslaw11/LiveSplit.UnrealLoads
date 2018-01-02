@@ -63,9 +63,9 @@ namespace LiveSplit.UnrealLoads
 		MemoryWatcher<int> _status;
 		StringWatcher _map;
 
-		SetMapFunction _setMapFunc;
-		Detour _loadMapHook;
-		Detour _saveGameHook;
+		IntPtr _setMapPtr;
+		LoadMapDetour _loadMapHook;
+		SaveGameDetour _saveGameHook;
 		IntPtr _statusPtr;
 		IntPtr _mapPtr;
 
@@ -300,33 +300,38 @@ namespace LiveSplit.UnrealLoads
 			{
 				_statusPtr = game.AllocateMemory(sizeof(int));
 				_mapPtr = game.AllocateMemory(MAP_SIZE);
-				_setMapFunc = new SetMapFunction(_mapPtr);
-				_setMapFunc.Inject(game);
 
-				if (Game.LoadMapDetourT != null)
+				_loadMapHook = Game.GetNewLoadMapDetour();
+				if (_loadMapHook != null)
 				{
-					_loadMapHook = Game.GetLoadMapHook(game, _setMapFunc.InjectedFuncPtr, _statusPtr);
-					if (_loadMapHook == null)
-						throw new Exception("Couldn't find the LoadMap function.");
+					_loadMapHook.StatusPtr = _statusPtr;
+
+					var setMapFunction = new SetMapUTF16Function(_mapPtr);
+					setMapFunction.Inject(game);
+					_setMapPtr = _loadMapHook.Encoding == StringType.UTF16
+						? new SetMapUTF16Function(_mapPtr).Inject(game)
+						: new SetMapASCIIFunction(_mapPtr).Inject(game);
+					_loadMapHook.SetMapPtr = _setMapPtr;
 				}
 
-				if (Game.SaveGameDetourT != null)
+				_saveGameHook = Game.GetNewSaveGameDetour();
+				if (_saveGameHook != null)
 				{
-					_saveGameHook = Game.GetSaveGameHook(game, _statusPtr);
-					if (_saveGameHook == null)
-						throw new Exception("Couldn't find the SaveGame function.");
+					_saveGameHook.StatusPtr = _statusPtr;
 				}
 
-				_saveGameHook?.Install(game);
 				_loadMapHook?.Install(game);
+				_saveGameHook?.Install(game);
 
 				Debug.WriteLine($"[NoLoads] Status: {_statusPtr.ToString("X")} Map: {_mapPtr.ToString("X")} ");
 				Debug.WriteLine($"[NoLoads] FakeSaveGame: {_saveGameHook?.InjectedFuncPtr.ToString("X")} FakeLoadMap: {_loadMapHook?.InjectedFuncPtr.ToString("X")}");
 				Debug.WriteLine($"[NoLoads] SaveGame: {_saveGameHook?.DetouredFuncPtr.ToString("X")} LoadMap: {_loadMapHook?.DetouredFuncPtr.ToString("X")}");
 				Debug.WriteLine("[NoLoads] Hooks installed");
 			}
-			catch
+			catch (Exception e)
 			{
+				Debug.WriteLine(e.ToString());
+				UninstallHooks(game);
 				FreeMemory(game);
 				return false;
 			}
@@ -346,8 +351,7 @@ namespace LiveSplit.UnrealLoads
 			game.Suspend();
 			try
 			{
-				_saveGameHook.Uninstall(game);
-				_loadMapHook.Uninstall(game);
+				UninstallHooks(game);
 			}
 			catch
 			{
@@ -363,6 +367,15 @@ namespace LiveSplit.UnrealLoads
 			return true;
 		}
 
+		void UninstallHooks(Process game)
+		{
+			if (_loadMapHook != null & _loadMapHook.Installed)
+				_loadMapHook.Uninstall(game);
+
+			if (_saveGameHook != null && _saveGameHook.Installed)
+				_saveGameHook.Uninstall(game);
+		}
+
 		void FreeMemory(Process game)
 		{
 			if (game == null || game.HasExited)
@@ -370,7 +383,7 @@ namespace LiveSplit.UnrealLoads
 
 			game.FreeMemory(_statusPtr);
 			game.FreeMemory(_mapPtr);
-			_setMapFunc?.FreeMemory(game);
+			game.FreeMemory(_setMapPtr);
 			_saveGameHook?.FreeMemory(game);
 			_loadMapHook?.FreeMemory(game);
 		}

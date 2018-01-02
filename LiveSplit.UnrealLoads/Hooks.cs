@@ -7,25 +7,42 @@ using System.Reflection;
 
 namespace LiveSplit.UnrealLoads
 {
+	public enum StringType
+	{
+		ASCII,
+		UTF16
+	}
+
 	public abstract class Detour
 	{
 		static Dictionary<int, Dictionary<string, ExportTableParser>> ExportsCache = new Dictionary<int, Dictionary<string, ExportTableParser>>();
 
-		public static string Symbol { get; }
-		public static string Module { get; }
+		public virtual string Symbol { get; }
+		public virtual string Module { get; }
 
 		public IntPtr Pointer { get; protected set; }
 		public IntPtr InjectedFuncPtr { get; protected set; }
 		public IntPtr DetouredFuncPtr { get; protected set; }
+		public bool Installed => InjectedFuncPtr != IntPtr.Zero;
+
+		/// <summary>
+		/// Returns true when the required object properties are set.
+		/// </summary>
+		protected virtual bool ReadyToInstall => true;
+		protected virtual int OverwrittenBytes => 5;
 
 		protected int _originalFuncCallOffset = -1;
 		protected bool _usesTrampoline;
-		protected int _overwrittenBytes = 5;
 
 		public abstract byte[] GetBytes();
 
 		public virtual void Install(Process process, IntPtr funcToDetour)
 		{
+			if (funcToDetour == IntPtr.Zero)
+				throw new ArgumentException($"{nameof(funcToDetour)} cannot be IntPtr.Zero", nameof(funcToDetour));
+			if (!ReadyToInstall)
+				throw new InvalidOperationException("Not ready to install.");
+
 			Pointer = funcToDetour;
 			if (process != null && Pointer != IntPtr.Zero)
 				DetouredFuncPtr = process.ReadJMP(Pointer);
@@ -40,7 +57,7 @@ namespace LiveSplit.UnrealLoads
 
 			if (_usesTrampoline)
 			{
-				DetouredFuncPtr = process.WriteDetour(Pointer, _overwrittenBytes, InjectedFuncPtr);
+				DetouredFuncPtr = process.WriteDetour(Pointer, OverwrittenBytes, InjectedFuncPtr);
 			}
 			else
 			{
@@ -53,7 +70,14 @@ namespace LiveSplit.UnrealLoads
 				process.WriteCallInstruction(InjectedFuncPtr + _originalFuncCallOffset, DetouredFuncPtr);
 		}
 
-		public void Install(Process process) => Install(process, FindExportedFunc(GetType(), process));
+		public void Install(Process process)
+		{
+			var funcPtr = FindExportedFunc(process);
+			if (funcPtr == IntPtr.Zero)
+				throw new Exception("Could not find the exported function.");
+
+			Install(process, funcPtr);
+		}
 
 		public virtual void Uninstall(Process process)
 		{
@@ -64,7 +88,7 @@ namespace LiveSplit.UnrealLoads
 			{
 				if (DetouredFuncPtr == IntPtr.Zero)
 					throw new InvalidOperationException("Not installed.");
-				process.CopyMemory(DetouredFuncPtr, Pointer, _overwrittenBytes);
+				process.CopyMemory(DetouredFuncPtr, Pointer, OverwrittenBytes);
 			}
 			else
 			{
@@ -90,15 +114,13 @@ namespace LiveSplit.UnrealLoads
 		{
 			module = module?.ToLower() ?? string.Empty;
 
-			Dictionary<string, ExportTableParser> tables;
-			if (!ExportsCache.TryGetValue(process.Id, out tables))
+			if (!ExportsCache.TryGetValue(process.Id, out var tables))
 			{
 				tables = new Dictionary<string, ExportTableParser>();
 				ExportsCache.Add(process.Id, tables);
 			}
 
-			ExportTableParser parser;
-			if (!tables.TryGetValue(module, out parser))
+			if (!tables.TryGetValue(module, out var parser))
 			{
 				parser = new ExportTableParser(process, module);
 				parser.Parse();
@@ -108,59 +130,42 @@ namespace LiveSplit.UnrealLoads
 			return parser;
 		}
 
-		public static IntPtr FindExportedFunc(Type type, Process process)
+		public IntPtr FindExportedFunc(Process process)
 		{
-			var symbol = GetSymbol(type);
-			var module = GetModule(type);
-
-			if (symbol == null)
+			if (Symbol == null)
 				throw new Exception("No symbol defined");
 
-			var exportParser = GetExportTableParser(process, module);
-			IntPtr ptr;
-			if (exportParser.Exports.TryGetValue(symbol, out ptr))
+			var exportParser = GetExportTableParser(process, Module);
+			if (exportParser.Exports.TryGetValue(Symbol, out var ptr))
 				return ptr;
 			else
 				return IntPtr.Zero;
-		}
-
-		public static string GetSymbol(Type type)
-		{
-			var prop = type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-			return (string)prop.First(p => p.Name == nameof(Symbol)).GetValue(null);
-		}
-
-		public static string GetModule(Type type)
-		{
-			var prop = type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-			return (string)prop.First(p => p.Name == nameof(Module)).GetValue(null);
 		}
 	}
 
 	public class LoadMapDetour : Detour
 	{
-		public new static string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
-		public new static string Module => "engine.dll";
+		public override string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
+		public override string Module => "engine.dll";
+		public virtual StringType Encoding => StringType.UTF16;
+
+		protected override bool ReadyToInstall => base.ReadyToInstall
+			&& SetMapPtr != IntPtr.Zero && StatusPtr != IntPtr.Zero;
+
+		public IntPtr SetMapPtr { get; set; }
+		public IntPtr StatusPtr { get; set; }
 
 		protected int _setMapCallOffset;
-		protected IntPtr _setMapPtr;
-		protected IntPtr _statusPtr;
 
 		public override void Install(Process process, IntPtr funcToDetour)
 		{
 			base.Install(process, funcToDetour);
-			process.WriteCallInstruction(InjectedFuncPtr + _setMapCallOffset, _setMapPtr);
-		}
-
-		public LoadMapDetour(IntPtr setMapAddr, IntPtr statusAddr)
-		{
-			_setMapPtr = setMapAddr;
-			_statusPtr = statusAddr;
+			process.WriteCallInstruction(InjectedFuncPtr + _setMapCallOffset, SetMapPtr);
 		}
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var loadingMap = Status.LoadingMap.ToBytes().ToHex();
 
@@ -196,8 +201,7 @@ namespace LiveSplit.UnrealLoads
 				"C2 10 00"                      // ret 10
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_setMapCallOffset = offsets[0];
 			_originalFuncCallOffset = offsets[1];
 
@@ -207,19 +211,17 @@ namespace LiveSplit.UnrealLoads
 
 	public class SaveGameDetour : Detour
 	{
-		public new static string Symbol => "?SaveGame@UGameEngine@@UAEXH@Z";
-		public new static string Module => "engine.dll";
+		public override string Symbol => "?SaveGame@UGameEngine@@UAEXH@Z";
+		public override string Module => "engine.dll";
 
-		protected IntPtr _statusPtr;
+		protected override bool ReadyToInstall => base.ReadyToInstall
+			&& StatusPtr != IntPtr.Zero;
 
-		public SaveGameDetour(IntPtr statusAddr)
-		{
-			_statusPtr = statusAddr;
-		}
+		public IntPtr StatusPtr { get; set; }
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var saving = Status.Saving.ToBytes().ToHex();
 
@@ -240,20 +242,17 @@ namespace LiveSplit.UnrealLoads
 				"C2 04 00"                          // RETN 4
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_originalFuncCallOffset = offsets[0];
 
 			return bytes.ToArray();
 		}
 	}
 
-	public class SetMapFunction
+	class SetMapUTF16Function
 	{
-		public byte[] Bytes => _bytes.ToArray();
+		public byte[] Bytes { get; private set; }
 		public IntPtr InjectedFuncPtr { get; private set; }
-
-		List<byte> _bytes;
 
 		public IntPtr Inject(Process process)
 		{
@@ -271,49 +270,97 @@ namespace LiveSplit.UnrealLoads
 			InjectedFuncPtr = IntPtr.Zero;
 		}
 
-		public SetMapFunction(IntPtr mapAddr)
+		public SetMapUTF16Function(IntPtr mapAddr)
+		{
+			var map = mapAddr.ToBytes().ToHex();
+
+			var str = string.Join("\n",
+				"55",                  // push ebp
+				"8B EC",               // mov ebp,esp
+				"51",                  // push ecx
+				"C7 45 FC 00000000",   // mov [ebp-04],00000000 { 0 }
+				"EB 09",               // jmp hooks.set_map_utf16+16
+				"8B 45 FC",            // mov eax,[ebp-04]
+				"83 C0 01",            // add eax,01 { 1 }
+				"89 45 FC",            // mov [ebp-04],eax
+				"81 7D FC 04010000",   // cmp [ebp-04],00000104 { 260 }
+				"7D 27",               // jnl hooks.set_map_utf16+46
+				"8B 4D FC",            // mov ecx,[ebp-04]
+				"8B 55 FC",            // mov edx,[ebp-04]
+				"8B 45 08",            // mov eax,[ebp+08]
+				"66 8B 14 50",         // mov dx,[eax+edx*2]
+				"66 89 14 4D " + map,  // mov [ecx*2+hooks.g_map],dx
+				"8B 45 FC",            // mov eax,[ebp-04]
+				"8B 4D 08",            // mov ecx,[ebp+08]
+				"0FB7 14 41",          // movzx edx,word ptr [ecx+eax*2]
+				"85 D2",               // test edx,edx
+				"75 02",               // jne hooks.set_map_utf16+44
+				"EB 02",               // jmp hooks.set_map_utf16+46
+				"EB C7",               // jmp hooks.set_map_utf16+D
+				"8B E5",               // mov esp,ebp
+				"5D",                  // pop ebp
+				"C3"                   // ret
+			);
+
+			Bytes = Utils.ParseBytes(str).ToArray();
+		}
+	}
+
+	public class SetMapASCIIFunction
+	{
+		public byte[] Bytes { get; private set; }
+		public IntPtr InjectedFuncPtr { get; private set; }
+
+		public IntPtr Inject(Process process)
+		{
+			InjectedFuncPtr = process.AllocateMemory(Bytes.Length);
+			process.WriteBytes(InjectedFuncPtr, Bytes);
+			return InjectedFuncPtr;
+		}
+
+		public void FreeMemory(Process process)
+		{
+			if (process == null || process.HasExited)
+				return;
+
+			process.FreeMemory(InjectedFuncPtr);
+			InjectedFuncPtr = IntPtr.Zero;
+		}
+
+		public SetMapASCIIFunction(IntPtr mapAddr)
 		{
 			var map = mapAddr.ToBytes().ToHex();
 
 			var str = string.Join("\n",
 				"55",                   // push ebp
-				"8B EC",                // mov ebp,esp
-				"83 EC 08",             // sub esp,8
-				"C7 45 FC 0 0 0 0",     // mov dword ptr ds:[ebp-4],0
-				"EB 09",                // jmp hooks.A1018
-				"8B 45 FC",             // mov eax,dword ptr ds:[ebp-4]
-				"83 C0 01",             // add eax,1
-				"89 45 FC",             // mov dword ptr ds:[ebp-4],eax
-				"81 7D FC 4 1 0 0",     // cmp dword ptr ds:[ebp-4],104
-				"7D 27",                // jge hooks.A1048
-				"8B 4D FC",             // mov ecx,dword ptr ds:[ebp-4]
-				"8B 55 FC",             // mov edx,dword ptr ds:[ebp-4]
-				"8B 45 08",             // mov eax,dword ptr ds:[ebp+8]
-				"66 8B 14 50",          // mov dx,word ptr ds:[eax+edx*2]
-				"66 89 14 4D " + map,   // mov word ptr ds:[ecx*2+<?g_map@@3PA_WA>
-				"8B 45 FC",             // mov eax,dword ptr ds:[ebp-4]
-				"8B 4D 08",             // mov ecx,dword ptr ds:[ebp+8]
-				"0F B7 14 41",          // movzx edx,word ptr ds:[ecx+eax*2]
+				"8B EC",                // mov ebp, esp
+				"51",                   // push ecx
+				"C7 45 FC 00000000",    // mov [ebp-04],00000000 { 0 }
+				"EB 09",                // jmp hooks.set_map_ascii+16
+				"8B 45 FC",             // mov eax,[ebp-04]
+				"83 C0 01",             // add eax,01 { 1 }
+				"89 45 FC",             // mov [ebp-04],eax
+				"81 7D FC 04010000",    // cmp [ebp-04],00000104 { 260 }
+				"7D 22",                // jnl hooks.set_map_ascii+41
+				"8B 4D 08",             // mov ecx,[ebp+08]
+				"03 4D FC",             // add ecx,[ebp-04]
+				"8B 55 FC",             // mov edx,[ebp-04]
+				"8A 01",                // mov al,[ecx]
+				"88 82 " + map,         // mov [edx+hooks.g_map],al
+				"8B 4D 08",             // mov ecx,[ebp+08]
+				"03 4D FC",             // add ecx,[ebp-04]
+				"0FBE 11",              // movsx edx,byte ptr [ecx]
 				"85 D2",                // test edx,edx
-				"75 02",                // jne hooks.A1046
-				"EB 02",                // jmp hooks.A1048
-				"EB C7",                // jmp hooks.A100F
-				"B8 2 0 0 0",           // mov eax,2
-				"69 C8 3 1 0 0",        // imul ecx,eax,103
-				"89 4D F8",             // mov dword ptr ds:[ebp-8],ecx
-				"81 7D F8 8 2 0 0",     // cmp dword ptr ds:[ebp-8],208
-				"73 02",                // jae hooks.A1061
-				"EB 05",                // jmp hooks.A1066
-				"E8 44 02 00 00",       // call hooks.A12AA
-				"33 D2",                // xor edx,edx
-				"8B 45 F8",             // mov eax,dword ptr ds:[ebp-8]
-				"66 89 90" + map,       // mov word ptr ds:[eax+<?g_map@@3PA_WA>],
+				"75 02",                // jne hooks.set_map_ascii+3F
+				"EB 02",                // jmp hooks.set_map_ascii+41
+				"EB CC",                // jmp hooks.set_map_ascii+D
 				"8B E5",                // mov esp,ebp
 				"5D",                   // pop ebp
 				"C3"                    // ret
 			);
 
-			_bytes = Utils.ParseBytes(str);
+			Bytes = Utils.ParseBytes(str).ToArray();
 		}
+
 	}
 }
