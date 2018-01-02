@@ -284,8 +284,12 @@ namespace LiveSplit.UnrealLoads
 				if (!Patch(game))
 					return null;
 
+				var stringType = _loadMapHook == null || _loadMapHook.Encoding == StringType.ASCII
+					? ReadStringType.ASCII
+					: ReadStringType.UTF16;
+				_map = new StringWatcher(_mapPtr, stringType, MAP_SIZE) { Name = "map" };
+
 				_status = new MemoryWatcher<int>(_statusPtr) { Name = "status" };
-				_map = new StringWatcher(_mapPtr, ReadStringType.AutoDetect, MAP_SIZE) { Name = "map" };
 				_watchers.AddRange(new MemoryWatcher[] { _status, _map });
 			}
 
