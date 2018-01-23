@@ -35,7 +35,8 @@ namespace LiveSplit.UnrealLoads
 			new SplinterCell(),
 			new MobileForces(),
 			new XCOM_Enforcer(),
-			new DS9TheFallen()
+			new DS9TheFallen(),
+			new KlingonHonorGuard()
 		};
 
 		public static readonly string[] SupportedProcessesNames =
