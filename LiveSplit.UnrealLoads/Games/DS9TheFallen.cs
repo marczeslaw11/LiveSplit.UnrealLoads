@@ -125,61 +125,11 @@ namespace LiveSplit.UnrealLoads.Games
 	class LoadMapDetour_DS9TheFallen : LoadMapDetour
 	{
 		public override StringType Encoding => StringType.ASCII;
-
-		public override string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@@Z";
-		public override string Module => "Engine.dll";
-
 		protected override int OverwrittenBytes => 8;
-
-		public override byte[] GetBytes()
-		{
-			var status = StatusPtr.ToBytes().ToHex();
-			var none = Status.None.ToBytes().ToHex();
-			var loadingMap = Status.LoadingMap.ToBytes().ToHex();
-
-			var str = string.Join("\n",
-				"55",
-				"8B EC",
-				"83 EC 10",
-				"89 55 F0",
-				"89 4D F8",
-				"8B 45 08",
-				"8B 48 1C",
-				"89 4D FC",
-				"8B 55 FC",
-				"52",
-				"#FF FF FF FF FF",
-				"83 C4 04",
-				"C7 05 " + status + loadingMap,
-				"8B 45 14",
-				"50",
-				"8B 4D 10",
-				"51",
-				"8B 55 0C",
-				"52",
-				"8B 45 08",
-				"50",
-				"8B 4D F8",
-				"#FF FF FF FF FF",
-				"89 45 F4",
-				"C7 05 " + status + none,
-				"8B 45 F4",
-				"8B E5",
-				"5D",
-				"C2 10 00"
-			);
-
-			var bytes = Utils.ParseBytes(str, out int[] offsets);
-			_setMapCallOffset = offsets[0];
-			_originalFuncCallOffset = offsets[1];
-
-			return bytes.ToArray();
-		}
 	}
 
 	class SaveGameDetour_DS9TheFallen : SaveGameDetour
 	{
 		public override string Symbol => "?SaveGame@UGameEngine@@UAEXPBD@Z";
-		public override string Module => "Engine.dll";
 	}
 }

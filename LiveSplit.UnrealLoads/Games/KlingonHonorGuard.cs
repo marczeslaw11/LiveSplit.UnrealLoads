@@ -67,8 +67,6 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public override LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour_KlingonHonorGuard();
 
-		public override SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour_KlingonHonorGuard();
-
 		public override TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
 			var status = (MemoryWatcher<int>)watchers["status"];
@@ -95,11 +93,10 @@ namespace LiveSplit.UnrealLoads.Games
 		public class LoadMapDetour_KlingonHonorGuard : LoadMapDetour
 		{
 			public override string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PAD@Z";
-			public override string Module => "Engine.dll";
+
 			public override StringType Encoding => StringType.ASCII;
 
 			protected override int OverwrittenBytes => 10;
-
 
 			public override byte[] GetBytes()
 			{
@@ -137,19 +134,12 @@ namespace LiveSplit.UnrealLoads.Games
 					"C2 0C 00"
 				);
 
-				int[] offsets;
-				var bytes = Utils.ParseBytes(str, out offsets);
+				var bytes = Utils.ParseBytes(str, out var offsets);
 				_setMapCallOffset = offsets[0];
 				_originalFuncCallOffset = offsets[1];
 
 				return bytes.ToArray();
 			}
-		}
-
-		public class SaveGameDetour_KlingonHonorGuard : SaveGameDetour
-		{
-			public override string Symbol => "?SaveGame@UGameEngine@@UAEXH@Z";
-			public override string Module => "Engine.dll";
 		}
 	}
 }
