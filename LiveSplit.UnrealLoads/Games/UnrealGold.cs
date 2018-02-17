@@ -83,9 +83,9 @@ namespace LiveSplit.UnrealLoads.Games
 			"inter14"
 		};
 
-		public override Type LoadMapDetourT => typeof(LoadMapDetour_oldUnreal);
+		public override LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour_oldUnreal();
 
-		public override Type SaveGameDetourT => typeof(SaveGameDetour_oldUnreal);
+		public override SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour_oldUnreal();
 
 		public override TimerAction[] OnUpdate(Process game, MemoryWatcherList watchers)
 		{
@@ -112,17 +112,13 @@ namespace LiveSplit.UnrealLoads.Games
 
 	public class LoadMapDetour_oldUnreal : LoadMapDetour
 	{
-		public new static string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@PAVUTravelDataManager@@@Z";
+		public override string Symbol => "?LoadMap@UGameEngine@@UAEPAVULevel@@ABVFURL@@PAVUPendingLevel@@PBV?$TMap@VFString@@V1@@@AAVFString@@PAVUTravelDataManager@@@Z";
 
-		public LoadMapDetour_oldUnreal(IntPtr setMapAddr, IntPtr statusAddr)
-			: base(setMapAddr, statusAddr)
-		{
-			_overwrittenBytes = 8;
-		}
+		protected override int OverwrittenBytes => 8;
 
 		public override byte[] GetBytes()
 		{
-			var status = _statusPtr.ToBytes().ToHex();
+			var status = StatusPtr.ToBytes().ToHex();
 			var none = Status.None.ToBytes().ToHex();
 			var loadingMap = Status.LoadingMap.ToBytes().ToHex();
 
@@ -160,8 +156,7 @@ namespace LiveSplit.UnrealLoads.Games
 				"C2 14 00"                      // ret 14
 			);
 
-			int[] offsets;
-			var bytes = Utils.ParseBytes(str, out offsets);
+			var bytes = Utils.ParseBytes(str, out var offsets);
 			_setMapCallOffset = offsets[0];
 			_originalFuncCallOffset = offsets[1];
 
@@ -171,10 +166,6 @@ namespace LiveSplit.UnrealLoads.Games
 
 	public class SaveGameDetour_oldUnreal : SaveGameDetour
 	{
-		public SaveGameDetour_oldUnreal(IntPtr statusAddr)
-			: base(statusAddr)
-		{
-			_overwrittenBytes = 8;
-		}
+		protected override int OverwrittenBytes => 8;
 	}
 }

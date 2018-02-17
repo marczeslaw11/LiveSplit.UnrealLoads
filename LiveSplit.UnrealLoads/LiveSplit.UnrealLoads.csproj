@@ -15,7 +15,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>C:\LiveSplit\Components\</OutputPath>
+    <OutputPath>..\..\..\..\Program Files %28x86%29\LiveSplit\Components\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -38,7 +38,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="LiveSplit.Core">
-      <HintPath>C:\LiveSplit\LiveSplit.Core.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files (x86)\LiveSplit\LiveSplit.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
@@ -51,19 +51,20 @@
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="UpdateManager, Version=0.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\LiveSplit\UpdateManager.dll</HintPath>
+    <Reference Include="UpdateManager">
+      <HintPath>..\..\..\..\Program Files (x86)\LiveSplit\UpdateManager.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ExportTableParser.cs" />
     <Compile Include="GameMemory.cs" />
+    <Compile Include="Games\DS9TheFallen.cs" />
     <Compile Include="Games\GameSupport.cs" />
     <Compile Include="Games\HarryPotter1.cs" />
     <Compile Include="Games\HarryPotter3.cs" />
     <Compile Include="Games\HarryPotter2.cs" />
+    <Compile Include="Games\KlingonHonorGuard.cs" />
     <Compile Include="Games\XCOM_Enforcer.cs" />
     <Compile Include="Games\Shrek2.cs" />
     <Compile Include="Games\SplinterCell.cs" />

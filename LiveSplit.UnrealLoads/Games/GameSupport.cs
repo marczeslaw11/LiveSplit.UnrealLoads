@@ -31,43 +31,28 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public virtual HashSet<string> Maps { get; } = new HashSet<string>();
 
-		public virtual Type LoadMapDetourT => typeof(LoadMapDetour);
+		public virtual LoadMapDetour GetNewLoadMapDetour() => new LoadMapDetour();
 
-		public virtual Type SaveGameDetourT => typeof(SaveGameDetour);
-
-		public LoadMapDetour GetLoadMapHook(Process game, IntPtr setMapPtr, IntPtr statusPtr)
-		{
-			if (LoadMapDetourT == null)
-				throw new Exception("No LoadMapDetour type defined");
-
-			var originalPtr = Detour.FindExportedFunc(LoadMapDetourT, game);
-			if (originalPtr != IntPtr.Zero)
-				return (LoadMapDetour)Activator.CreateInstance(LoadMapDetourT, setMapPtr, statusPtr);
-			else
-				return null;
-		}
-
-		public SaveGameDetour GetSaveGameHook(Process game, IntPtr statusPtr)
-		{
-			if (SaveGameDetourT == null)
-				throw new Exception("No SaveGameDetour type defined");
-
-			var originalPtr = Detour.FindExportedFunc(SaveGameDetourT, game);
-			if (originalPtr != IntPtr.Zero)
-				return (SaveGameDetour)Activator.CreateInstance(SaveGameDetourT, statusPtr);
-			else
-				return null;
-		}
+		public virtual SaveGameDetour GetNewSaveGameDetour() => new SaveGameDetour();
 
 		public string[] GetHookModules()
 		{
 			var list = new List<string>();
-			var loadmap = Detour.GetModule(LoadMapDetourT);
-			var savegame = Detour.GetModule(SaveGameDetourT);
-			if (!string.IsNullOrEmpty(loadmap))
-				list.Add(loadmap);
-			if (!string.IsNullOrEmpty(savegame))
-				list.Add(savegame);
+
+			var loadMap = GetNewLoadMapDetour();
+			if (loadMap != null)
+			{
+				if (!string.IsNullOrEmpty(loadMap.Module))
+					list.Add(loadMap.Module);
+			}
+
+			var saveGame = GetNewSaveGameDetour();
+			if (saveGame != null)
+			{
+				if (!string.IsNullOrEmpty(saveGame.Module))
+					list.Add(saveGame.Module);
+			}
+
 			return list.ToArray();
 		}
 
