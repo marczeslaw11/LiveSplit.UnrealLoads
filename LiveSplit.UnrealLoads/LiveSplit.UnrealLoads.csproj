@@ -38,7 +38,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="LiveSplit.Core">
-      <HintPath>..\..\..\..\Program Files (x86)\LiveSplit\LiveSplit.Core.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\LiveSplit\LiveSplit.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
@@ -52,7 +52,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="UpdateManager">
-      <HintPath>..\..\..\..\Program Files (x86)\LiveSplit\UpdateManager.dll</HintPath>
+      <HintPath>..\..\..\..\Program Files\LiveSplit\UpdateManager.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
