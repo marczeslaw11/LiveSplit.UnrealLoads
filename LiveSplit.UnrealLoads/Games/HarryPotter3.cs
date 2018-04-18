@@ -19,18 +19,18 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public override HashSet<string> Maps => new HashSet<string>
 		{
-			"hp3_ch1carperetractum.unr",
-			"hp3_ch1carperetractumb.unr",
-			"hp3_groundshub.unr",
-			"hp3_comc.unr",
-			"hp3_ch2draconiforsb.unr",
-			"hp3_adv2exppatronum.unr",
-			"hp3_adv2glaciusb.unr",
-			"hp3_adv4shack.unr",
-			"hp3_whompingwillow.unr",
-			"hp3_infirmary.unr",
-			"hp3_dementorbattle.unr",
-			"hp3_fa1ron.unr"
+			"hp3_ch1carperetractum",
+			"hp3_ch1carperetractumb",
+			"hp3_groundshub",
+			"hp3_comc",
+			"hp3_ch2draconiforsb",
+			"hp3_adv2exppatronum",
+			"hp3_adv2glaciusb",
+			"hp3_adv4shack",
+			"hp3_whompingwillow",
+			"hp3_infirmary",
+			"hp3_dementorbattle",
+			"hp3_fa1ron"
 		};
 	}
 }
