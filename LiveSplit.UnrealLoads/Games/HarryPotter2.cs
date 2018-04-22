@@ -32,7 +32,7 @@ namespace LiveSplit.UnrealLoads.Games
 			"grounds_hub",
 			"quidditch_intro",
 			"ch2skurge",
-			"adv3dungeronquest",
+			"adv3dungeonquest",
 			"arena",
 			"ch3diffindo",
 			"adv4greenhouse",
