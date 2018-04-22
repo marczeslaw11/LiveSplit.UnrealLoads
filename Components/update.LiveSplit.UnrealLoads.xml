@@ -1,4 +1,14 @@
 <updates>
+  <update version="1.6">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Added a setting to split on maps only once (enabled by default)</change>
+      <change>Added Harry Potter 2 map whitelist</change>
+      <change>Added Harry Potter 3 map whitelist</change>
+    </changelog>
+  </update>
   <update version="1.5">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
