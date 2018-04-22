@@ -35,6 +35,7 @@
             this.chkAutoReset = new System.Windows.Forms.CheckBox();
             this.chkSplitOnNewMap = new System.Windows.Forms.CheckBox();
             this.chkDbgShowMap = new System.Windows.Forms.CheckBox();
+            this.chkSplitOncePerMap = new System.Windows.Forms.CheckBox();
             this.gbMapWhitelist = new System.Windows.Forms.GroupBox();
             this.tlpMapWhitelist = new System.Windows.Forms.TableLayoutPanel();
             this.chklbMapSet = new System.Windows.Forms.CheckedListBox();
@@ -46,7 +47,6 @@
             this.btnRemoveMap = new System.Windows.Forms.Button();
             this.txtMap = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
-            this.chkSplitOncePerMap = new System.Windows.Forms.CheckBox();
             this.tlpMain.SuspendLayout();
             this.gbStartSplits.SuspendLayout();
             this.tlpStartSplits.SuspendLayout();
@@ -139,9 +139,9 @@
             this.chkSplitOnNewMap.AutoSize = true;
             this.chkSplitOnNewMap.Location = new System.Drawing.Point(3, 49);
             this.chkSplitOnNewMap.Name = "chkSplitOnNewMap";
-            this.chkSplitOnNewMap.Size = new System.Drawing.Size(175, 17);
+            this.chkSplitOnNewMap.Size = new System.Drawing.Size(173, 17);
             this.chkSplitOnNewMap.TabIndex = 6;
-            this.chkSplitOnNewMap.Text = "Automatic Split on Map Change";
+            this.chkSplitOnNewMap.Text = "Automatic Split on map change";
             this.chkSplitOnNewMap.UseVisualStyleBackColor = true;
             // 
             // chkDbgShowMap
@@ -149,11 +149,23 @@
             this.chkDbgShowMap.AutoSize = true;
             this.chkDbgShowMap.Location = new System.Drawing.Point(3, 95);
             this.chkDbgShowMap.Name = "chkDbgShowMap";
-            this.chkDbgShowMap.Size = new System.Drawing.Size(188, 17);
+            this.chkDbgShowMap.Size = new System.Drawing.Size(181, 17);
             this.chkDbgShowMap.TabIndex = 7;
-            this.chkDbgShowMap.Text = "Debug: Show Map Name on Load";
+            this.chkDbgShowMap.Text = "Debug: Show map name on load";
             this.chkDbgShowMap.UseVisualStyleBackColor = true;
             this.chkDbgShowMap.Visible = false;
+            // 
+            // chkSplitOncePerMap
+            // 
+            this.chkSplitOncePerMap.AutoSize = true;
+            this.chkSplitOncePerMap.Checked = true;
+            this.chkSplitOncePerMap.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkSplitOncePerMap.Location = new System.Drawing.Point(3, 72);
+            this.chkSplitOncePerMap.Name = "chkSplitOncePerMap";
+            this.chkSplitOncePerMap.Size = new System.Drawing.Size(200, 17);
+            this.chkSplitOncePerMap.TabIndex = 8;
+            this.chkSplitOncePerMap.Text = "Split automatically only once per map";
+            this.chkSplitOncePerMap.UseVisualStyleBackColor = true;
             // 
             // gbMapWhitelist
             // 
@@ -299,16 +311,6 @@
             this.label3.Size = new System.Drawing.Size(31, 13);
             this.label3.TabIndex = 3;
             this.label3.Text = "Map:";
-            // 
-            // chkSplitOncePerMap
-            // 
-            this.chkSplitOncePerMap.AutoSize = true;
-            this.chkSplitOncePerMap.Location = new System.Drawing.Point(3, 72);
-            this.chkSplitOncePerMap.Name = "chkSplitOncePerMap";
-            this.chkSplitOncePerMap.Size = new System.Drawing.Size(136, 17);
-            this.chkSplitOncePerMap.TabIndex = 8;
-            this.chkSplitOncePerMap.Text = "Split only once per map";
-            this.chkSplitOncePerMap.UseVisualStyleBackColor = true;
             // 
             // UnrealLoadsSettings
             // 
