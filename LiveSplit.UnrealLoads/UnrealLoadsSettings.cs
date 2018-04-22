@@ -42,6 +42,7 @@ namespace LiveSplit.UnrealLoads
 			chkAutoReset.DataBindings.Add("Checked", this, "AutoReset", false, DataSourceUpdateMode.OnPropertyChanged);
 			chkSplitOnNewMap.DataBindings.Add("Checked", this, "AutoSplitOnMapChange", false, DataSourceUpdateMode.OnPropertyChanged);
 			chkSplitOncePerMap.DataBindings.Add("Checked", this, "AutoSplitOncePerMap", false, DataSourceUpdateMode.OnPropertyChanged);
+			chkSplitOncePerMap.DataBindings.Add("Enabled", chkSplitOnNewMap, "Checked", false, DataSourceUpdateMode.OnPropertyChanged);
 			gbMapWhitelist.DataBindings.Add("Enabled", chkSplitOnNewMap, "Checked", false, DataSourceUpdateMode.OnPropertyChanged);
 			chkDbgShowMap.DataBindings.Add("Checked", this, "DbgShowMap", false, DataSourceUpdateMode.OnPropertyChanged);
 
