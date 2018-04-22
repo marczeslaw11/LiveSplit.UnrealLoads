@@ -60,13 +60,19 @@ namespace LiveSplit.UnrealLoads
 
 		static GameSupport SearchGameSupport(string name)
 		{
-			var game = GameMemory.SupportedGames.FirstOrDefault(g => g.GetType().Name == name);
+			name = name.ToLowerInvariant();
+
+			var game = GameMemory.SupportedGames.FirstOrDefault(g =>
+				g.GetType().Name.ToLowerInvariant() == name
+					|| g.GameNames.Any(n => n.ToLowerInvariant() == name)
+			);
+
 			if (game != null)
 				return game;
 
-			return GameMemory.SupportedGames.FirstOrDefault(
-				g => g.GameNames.Any(n => name.ToLower().Contains(n.ToLower()))
-				);
+			return GameMemory.SupportedGames.FirstOrDefault(g =>
+				g.GameNames.Any(n => name.Contains(n.ToLowerInvariant()))
+			);
 		}
 
 		void RefreshCheckList()
@@ -113,14 +119,14 @@ namespace LiveSplit.UnrealLoads
 			AutoSplitOnMapChange = SettingsHelper.ParseBool(settings["AutoSplitOnMapChange"], DEFAULT_AUTOSPLITONMAPCHANGE);
 			AutoSplitOncePerMap = SettingsHelper.ParseBool(settings["AutoSplitOncePerMap"], DEFAULT_AUTOSPLITONCEPERMAP);
 
-			Type game = null;
+			GameSupport game = null;
 			if (!string.IsNullOrWhiteSpace(settings["Game"]?.InnerText))
-				game = SearchGameSupport(settings["Game"].InnerText)?.GetType();
+				game = SearchGameSupport(settings["Game"].InnerText);
 
 			if (game == null)
-				game = SearchGameSupport(_state.Run.GameName)?.GetType() ?? GameMemory.SupportedGames[0].GetType();
+				game = SearchGameSupport(_state.Run.GameName) ?? GameMemory.SupportedGames[0];
 
-			cbGame.SelectedItem = game;
+			cbGame.SelectedItem = game.GetType();
 
 			if (settings["MapWhitelist"] != null)
 			{
