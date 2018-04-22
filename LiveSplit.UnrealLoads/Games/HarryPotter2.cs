@@ -22,6 +22,34 @@ namespace LiveSplit.UnrealLoads.Games
 			"game"
 		};
 
+		public override HashSet<string> Maps => new HashSet<string>
+		{
+			"grounds_night",
+			"entryhall_hub",
+			"grandstaircase_hub",
+			"ch1rictusempra",
+			"beanrewardroom",
+			"grounds_hub",
+			"quidditch_intro",
+			"ch2skurge",
+			"adv3dungeronquest",
+			"arena",
+			"ch3diffindo",
+			"adv4greenhouse",
+			"adv6goyle",
+			"quidditch",
+			"adv7slythcomroom",
+			"ch4spongify",
+			"sepia_hallway",
+			"adv8forest",
+			"adv9aragog",
+			"adv11acorridor",
+			"adv11bsecrets",
+			"adv12chamber",
+			"greathall_g",
+			"ch6wizardcard"
+		};
+
 		MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
 		readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
 		{
