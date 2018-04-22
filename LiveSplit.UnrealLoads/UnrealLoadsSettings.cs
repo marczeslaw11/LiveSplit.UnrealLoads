@@ -35,7 +35,9 @@ namespace LiveSplit.UnrealLoads
 			_state = state;
 
 			Maps = new Dictionary<string, bool>();
-			cbGame.DataSource = GameMemory.SupportedGames.Select(s => s.GetType()).ToList();
+			cbGame.DataSource = GameMemory.SupportedGames.Select(s => s.GetType())
+				.OrderBy(t => t.Name)
+				.ToList();
 			cbGame.DisplayMember = "Name";
 
 			chkAutoStart.DataBindings.Add("Checked", this, "AutoStart", false, DataSourceUpdateMode.OnPropertyChanged);
