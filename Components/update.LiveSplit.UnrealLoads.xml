@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.6.1">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Harry Potter 2: Fixed adv3dungeonquest map name.</change>
+    </changelog>
+  </update>
   <update version="1.6">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
