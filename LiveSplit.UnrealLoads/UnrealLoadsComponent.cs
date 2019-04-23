@@ -4,6 +4,7 @@ using LiveSplit.UI.Components;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using System.Xml;
@@ -59,29 +60,53 @@ namespace LiveSplit.UnrealLoads
 			_timer.Split();
 		}
 
-		void _gameMemory_OnMapChange(object sender, string map)
+		void _gameMemory_OnMapChange(object sender, string prevMap, string nextMap)
 		{
-			map = map.ToLower();
-			if (Settings.AutoSplitOnMapChange && (!Settings.AutoSplitOncePerMap || !_splitHistory.Contains(map)))
+			if (Settings.AutoSplitOnMapChange)
 			{
-				var enabled = false;
-				if (Settings.Maps.Count == 0)
-					enabled = true;
-				else
-					Settings.Maps.TryGetValue(map, out enabled);
+				prevMap = prevMap.ToLower();
+				nextMap = nextMap.ToLower();
 
-				if (enabled)
+				var shouldSplit = false;
+				if (Settings.Maps.Count == 0)
+					shouldSplit = true;
+				else
+				{
+					var leaveMap = Settings.Maps
+						.FirstOrDefault(map => map.SplitOnLeave && string.Equals(map.Name, prevMap, StringComparison.OrdinalIgnoreCase));
+
+					var enterMap = Settings.Maps
+						.FirstOrDefault(map => map.SplitOnEnter && string.Equals(map.Name, nextMap, StringComparison.OrdinalIgnoreCase));
+
+					if (leaveMap != null && ShouldSplitMap(leaveMap.Name))
+					{
+						shouldSplit = true;
+						_splitHistory.Add(prevMap);
+					}
+
+					if (enterMap != null && ShouldSplitMap(enterMap.Name))
+					{
+						shouldSplit = true;
+						_splitHistory.Add(nextMap);
+					}
+				}
+
+				if (shouldSplit)
 				{
 					_timer.Split();
-					_splitHistory.Add(map);
 				}
 			}
 
 #if DEBUG
 			if (Settings.DbgShowMap)
-				MessageBox.Show(_state.Form, "Map name: \"" + map + "\"", "LiveSplit.UnrealLoads",
+				MessageBox.Show(_state.Form, prevMap + " -> " + nextMap, "LiveSplit.UnrealLoads",
 					MessageBoxButtons.OK, MessageBoxIcon.Information);
 #endif
+		}
+
+		bool ShouldSplitMap(string mapName)
+		{
+			return !Settings.AutoSplitOncePerMap || !_splitHistory.Contains(mapName, StringComparer.OrdinalIgnoreCase);
 		}
 
 		public override void Dispose()

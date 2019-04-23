@@ -50,7 +50,7 @@ namespace LiveSplit.UnrealLoads
 		public event EventHandler OnLoadStarted;
 		public event EventHandler OnLoadEnded;
 		public event MapChangeEventHandler OnMapChange;
-		public delegate void MapChangeEventHandler(object sender, string map);
+		public delegate void MapChangeEventHandler(object sender, string prevMap, string nextMap);
 
 		public GameSupport Game { get; private set; }
 
@@ -143,11 +143,17 @@ namespace LiveSplit.UnrealLoads
 
 						if (_map.Changed)
 						{
-							map = Path.GetFileNameWithoutExtension(_map.Current).ToLower();
-							_uiThread.Post(d => OnMapChange?.Invoke(this, map), null);
-							Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter));
-						}
+							if (string.IsNullOrEmpty(Game.MapExtension) || string.IsNullOrEmpty(Path.GetExtension(_map.Current))
+								|| string.Equals(Path.GetExtension(_map.Current), Game.MapExtension, StringComparison.OrdinalIgnoreCase))
+							{
+								prevMap = map;
+								map = Path.GetFileNameWithoutExtension(_map.Current);
 
+								_uiThread.Post(d => OnMapChange?.Invoke(this, prevMap, map), null);
+
+								Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter));
+								}
+							}
 						if (_status.Changed && _status.Current == (int)Status.LoadingMap)
 						{
 							DoTimerAction(Game.OnMapLoad(_watchers));
@@ -168,7 +174,6 @@ namespace LiveSplit.UnrealLoads
 						}
 
 						prevIsLoading = isLoading;
-						prevMap = map;
 						frameCounter++;
 
 						Thread.Sleep(SLEEP_TIME);
@@ -177,8 +182,6 @@ namespace LiveSplit.UnrealLoads
 							break;
 					}
 
-					//pause on crash/exit
-					_uiThread.Post(d => OnLoadStarted?.Invoke(this, EventArgs.Empty), null);
 					DoTimerAction(Game.OnDetach(game));
 				}
 				catch (Exception ex)
