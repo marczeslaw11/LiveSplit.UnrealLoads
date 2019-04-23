@@ -1,4 +1,13 @@
 <updates>
+  <update version="1.7">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>New settings with the ability to split on either entering or leaving a map.</change>
+      <change>Added missing Harry Potter 2 and Harry Potter 3 maps</change>
+    </changelog>
+  </update>
   <update version="1.6.1">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
