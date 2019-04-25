@@ -1,4 +1,12 @@
 <updates>
+  <update version="1.7.1">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Added Harry Potter 1 map whitelist.</change>
+    </changelog>
+  </update>
   <update version="1.7">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
