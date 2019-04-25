@@ -27,7 +27,6 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public override HashSet<string> Maps => new HashSet<string>
 		{
-
 			"Adv1Willow",
 			"Adv3DungeonQuest",
 			"Adv4Greenhouse",
