@@ -130,5 +130,10 @@ namespace LiveSplit.UnrealLoads.Games
 
 			return commandLine.ToString();
 		}
+
+		public override TimerAction[] OnDetach(Process game)
+		{
+			return new TimerAction[] { TimerAction.UnpauseGameTime };
+		}
 	}
 }
