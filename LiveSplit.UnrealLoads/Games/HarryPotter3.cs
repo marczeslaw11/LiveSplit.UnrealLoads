@@ -1,13 +1,12 @@
 ﻿using System.Collections.Generic;
 using LiveSplit.ComponentUtil;
 using System;
+using System.Diagnostics;
 
 namespace LiveSplit.UnrealLoads.Games
 {
 	class HarryPotter3 : GameSupport
 	{
-		public override string MapExtension { get; } = ".unr";
-
 		public override HashSet<string> GameNames => new HashSet<string>
 		{
 			"Harry Potter 3",
@@ -61,10 +60,20 @@ namespace LiveSplit.UnrealLoads.Games
 		{
 			var map = (StringWatcher)watchers["map"];
 
-			if (map.Current.Equals("hp3_adv1express.unr", StringComparison.OrdinalIgnoreCase))
-				return new TimerAction[] { TimerAction.Start };
-			else
-				return null;
+			if (map != null)
+			{
+				if (map.Current.Equals("hp3_adv1express.unr", StringComparison.OrdinalIgnoreCase))
+				{
+					return new TimerAction[] { TimerAction.Start };
+				}
+			}	
+
+			return new TimerAction[] { TimerAction.DoNothing };
+		}
+
+		public override TimerAction[] OnDetach(Process game)
+		{
+			return new TimerAction[] { TimerAction.UnpauseGameTime };
 		}
 	}
 }
