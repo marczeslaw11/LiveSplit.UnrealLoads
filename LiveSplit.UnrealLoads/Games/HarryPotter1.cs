@@ -54,6 +54,11 @@ namespace LiveSplit.UnrealLoads.Games
 			"Snapes_Office"
 		};
 
+		public override TimerAction[] OnDetach(Process game)
+		{
+			return new TimerAction[] { TimerAction.DoNothing };
+		}
+
 		public override TimerAction[] OnMapLoad(MemoryWatcherList watchers)
 		{
 			StringWatcher map = (StringWatcher)watchers["map"];
