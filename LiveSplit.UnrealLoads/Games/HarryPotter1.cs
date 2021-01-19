@@ -56,7 +56,7 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public override TimerAction[] OnDetach(Process game)
 		{
-			return new TimerAction[] { TimerAction.DoNothing };
+			return new TimerAction[] { TimerAction.UnpauseGameTime };
 		}
 
 		public override TimerAction[] OnMapLoad(MemoryWatcherList watchers)
@@ -70,7 +70,7 @@ namespace LiveSplit.UnrealLoads.Games
 				}
 			}
 			
-			return new TimerAction[] { TimerAction.UnpauseGameTime };
+			return new TimerAction[] { TimerAction.DoNothing };
 		}
 	}
 }
