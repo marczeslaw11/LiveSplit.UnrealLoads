@@ -69,8 +69,8 @@ namespace LiveSplit.UnrealLoads.Games
 			"Transition"
 		};
 
-		MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
-		readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
+		private readonly MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
+		private readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
 		{
 			704512,
 			749568, // US
