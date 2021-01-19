@@ -23,9 +23,7 @@ namespace LiveSplit.UnrealLoads.Games
 			"game"
 		};
 
-		public override string MapExtension { get; } = ".unr";
-
-		public override HashSet<string> Maps => new HashSet<string>
+		public override HashSet<string> Maps => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"Adv1Willow",
 			"Adv3DungeonQuest",

@@ -142,19 +142,25 @@ namespace LiveSplit.UnrealLoads
 
 						if (_map.Changed)
 						{
-							if (string.IsNullOrEmpty(Game.MapExtension) ||
-								string.Equals(Path.GetExtension(_map.Current), Game.MapExtension, StringComparison.OrdinalIgnoreCase))
+							string mapname = Path.GetFileNameWithoutExtension(_map.Current);
+							string extension = Path.GetExtension(_map.Current);
+
+							Debug.WriteLine($"Map changed to {_map.Current}, Type: {extension}");
+
+							if (Game.Maps.Count == 0 || Game.Maps.Contains(mapname))
 							{
-								prevMap = map;
-								map = Path.GetFileNameWithoutExtension(_map.Current);
+								if (Game.MapExtension == null ||
+									extension.Equals(Game.MapExtension, StringComparison.OrdinalIgnoreCase))
+								{
+									prevMap = map;
+									map = mapname;
 
-								_uiThread.Post(d => OnMapChange?.Invoke(this, prevMap, map), null);
+									_uiThread.Post(d => OnMapChange?.Invoke(this, prevMap, map), null);
 
-								Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter));
+									Debug.WriteLine("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter);
+								}
 							}
-						}
-
-						if (_status.Changed && _status.Current == Status.LoadingMap)
+						if (_status.Changed && _status.Current == (int)Status.LoadingMap)
 						{
 							DoTimerAction(Game.OnMapLoad(_watchers));
 						}

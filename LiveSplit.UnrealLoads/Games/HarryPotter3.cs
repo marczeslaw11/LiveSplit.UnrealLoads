@@ -20,7 +20,7 @@ namespace LiveSplit.UnrealLoads.Games
 			"hppoa"
 		};
 
-		public override HashSet<string> Maps => new HashSet<string>
+		public override HashSet<string> Maps => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"hp3_adv1express",
 			"hp3_groundsdada",
