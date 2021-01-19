@@ -14,9 +14,9 @@ namespace LiveSplit.UnrealLoads
 {
 	enum Status
 	{
-		None,
-		LoadingMap,
-		Saving
+		None = 0,
+		LoadingMap = 1,
+		Saving = 2
 	}
 
 	class GameMemory
@@ -59,9 +59,8 @@ namespace LiveSplit.UnrealLoads
 		SynchronizationContext _uiThread;
 		HashSet<int> _ignorePIDs;
 		int _lastPID;
-
 		MemoryWatcherList _watchers;
-		MemoryWatcher<int> _status;
+		MemoryWatcher<Status> _status;
 		StringWatcher _map;
 
 		IntPtr _setMapPtr;
@@ -135,11 +134,11 @@ namespace LiveSplit.UnrealLoads
 
 						var gameSupportIsLoading = Game.IsLoading(_watchers);
 						if (!gameSupportIsLoading.HasValue)
-							isLoading = _status.Current != (int)Status.None;
+							isLoading = _status.Current != Status.None;
 						else
 							isLoading = gameSupportIsLoading.Value;
 
-						Debug.WriteLineIf(_status.Changed, string.Format("[NoLoads] Status changed from {1} to {2} - {0}", frameCounter, (Status)_status.Old, (Status)_status.Current));
+						Debug.WriteLineIf(_status.Changed, string.Format("[NoLoads] Status changed from {1} to {2} - {0}", frameCounter, _status.Old, _status.Current));
 
 						if (_map.Changed)
 						{
@@ -152,9 +151,10 @@ namespace LiveSplit.UnrealLoads
 								_uiThread.Post(d => OnMapChange?.Invoke(this, prevMap, map), null);
 
 								Debug.WriteLine(string.Format("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter));
-								}
 							}
-						if (_status.Changed && _status.Current == (int)Status.LoadingMap)
+						}
+
+						if (_status.Changed && _status.Current == Status.LoadingMap)
 						{
 							DoTimerAction(Game.OnMapLoad(_watchers));
 						}
@@ -293,7 +293,7 @@ namespace LiveSplit.UnrealLoads
 					: ReadStringType.UTF16;
 				_map = new StringWatcher(_mapPtr, stringType, MAP_SIZE) { Name = "map" };
 
-				_status = new MemoryWatcher<int>(_statusPtr) { Name = "status" };
+				_status = new MemoryWatcher<Status>(_statusPtr) { Name = "status" };
 				_watchers.AddRange(new MemoryWatcher[] { _status, _map });
 			}
 
