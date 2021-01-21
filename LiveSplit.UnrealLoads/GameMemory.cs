@@ -160,7 +160,6 @@ namespace LiveSplit.UnrealLoads
 									Debug.WriteLine("[NoLoads] Map is changing from \"{0}\" to \"{1}\" - {2}", prevMap, map, frameCounter);
 								}
 							}
-
 						}
 
 						if (_status.Changed && _status.Current == Status.LoadingMap)
