@@ -70,5 +70,4 @@ namespace LiveSplit.UnrealLoads.Games
 
 		public virtual TimerAction[] OnDetach(Process game) => new TimerAction[] { TimerAction.PauseGameTime };
 	}
-
 }

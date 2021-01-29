@@ -23,9 +23,7 @@ namespace LiveSplit.UnrealLoads.Games
 			"game"
 		};
 
-		public override string MapExtension { get; } = ".unr";
-
-		public override HashSet<string> Maps => new HashSet<string>
+		public override HashSet<string> Maps => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			"Adv1Willow",
 			"Adv3DungeonQuest",
@@ -69,8 +67,8 @@ namespace LiveSplit.UnrealLoads.Games
 			"Transition"
 		};
 
-		MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
-		readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
+		private readonly MemoryWatcher<bool> _isSkippingCut = new MemoryWatcher<bool>(new DeepPointer("Engine.dll", 0x2E2DFC, 0x5C));
+		private readonly HashSet<int> _moduleMemorySizes = new HashSet<int>
 		{
 			704512,
 			749568, // US
@@ -129,6 +127,11 @@ namespace LiveSplit.UnrealLoads.Games
 			}
 
 			return commandLine.ToString();
+		}
+
+		public override TimerAction[] OnDetach(Process game)
+		{
+			return new TimerAction[] { TimerAction.UnpauseGameTime };
 		}
 	}
 }
