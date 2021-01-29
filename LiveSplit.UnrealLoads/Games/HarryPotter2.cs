@@ -106,16 +106,6 @@ namespace LiveSplit.UnrealLoads.Games
 			return null;
 		}
 
-		public override TimerAction[] OnMapLoad(MemoryWatcherList watchers)
-		{
-			var map = (StringWatcher)watchers["map"];
-			//reset only if it is the first map loaded
-			if (string.IsNullOrEmpty(map.Old) && map.Current.ToLower() == "privetdr.unr")
-				return new TimerAction[] { TimerAction.Reset };
-
-			return null;
-		}
-
 		static string GetCommandLine(Process process)
 		{
 			var commandLine = new StringBuilder();
