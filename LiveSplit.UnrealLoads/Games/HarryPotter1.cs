@@ -70,7 +70,7 @@ namespace LiveSplit.UnrealLoads.Games
 				}
 			}
 			
-			return new TimerAction[] { TimerAction.DoNothing };
+			return null;
 		}
 	}
 }
