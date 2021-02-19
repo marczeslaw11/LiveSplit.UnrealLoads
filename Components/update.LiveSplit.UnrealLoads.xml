@@ -1,4 +1,15 @@
 <updates>
+  <update version="1.8">
+    <files>
+      <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
+    </files>
+    <changelog>
+      <change>Harry Potter 1 and 2: no longer pause on exit (by Tedder)</change>
+      <change>Harry Potter 1: fixed first map failing to autosplit sometimes (by Tedder)</change>
+      <change>Harry Potter 2: auto-reset is removed because of unintentional resets</change>
+      <change>Harry Potter 3: autosplitting fix (by Tedder)</change>
+    </changelog>
+  </update>
   <update version="1.7.1">
     <files>
       <file path="Components/LiveSplit.UnrealLoads.dll" status="changed"/>
